@@ -1,9 +1,10 @@
 # NER
 Named Entity Recognition
 
-#Doubts:
+# TO DO
 
-Probability of CRF 
-What is s:l(s) = 1?
+## Preprocessing
+
+* extract observation sequence and label sequence from the kaggle dataset
 
 
