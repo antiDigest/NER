@@ -6,5 +6,7 @@ Named Entity Recognition
 ## Preprocessing
 
 * extract observation sequence and label sequence from the kaggle dataset
+* proposed set of features
+
 
 
