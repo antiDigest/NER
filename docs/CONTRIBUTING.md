@@ -9,12 +9,11 @@ top of things.
 
 ## Getting Started
 
-* Make sure you have a [Jira account](https://tickets.puppetlabs.com).
 * Make sure you have a [GitHub account](https://github.com/signup/free).
-* Submit a Jira ticket for your issue if one does not already exist.
+* Submit an Issue for your issue if one does not already exist.
   * Clearly describe the issue including steps to reproduce when it is a bug.
   * Make sure you fill in the earliest version that you know has the issue.
-  * A ticket is not necessary for [trivial changes](https://docs.puppet.com/community/trivial_patch_exemption.html)
+  * An Issue is not necessary for trivial changes.
 * Fork the repository on GitHub.
 
 ## Making Changes
