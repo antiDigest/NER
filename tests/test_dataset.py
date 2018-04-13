@@ -14,7 +14,7 @@ def test_dataset_import_test():
 def test_data_to_records():
     from DataSet import DataSet
 
-    d = DataSet(FILE='data/kaggle/sample.csv')
+    d = DataSet(FILE='demo/sample.csv')
     r = None
     for row in d.iterate():
         r = row
