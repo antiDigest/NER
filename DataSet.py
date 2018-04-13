@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import math
 import time
+from Entities import *
 
 
 class DataSet(object):
@@ -32,6 +33,16 @@ class DataSet(object):
     def iterate(self):
         for row in self.data.to_records():
             yield row[2].split(';'), row[1].split(';')
+
+    def startProbability(self):
+        pi = np.zeros(len(entities.keys()))
+        for row in self.iterate():
+            pi[getEntity(row[1][0])] += 1
+
+        return pi / sum(pi)
+
+    def to_records(self):
+        return self.data.to_records()
 
 if __name__ == '__main__':
     start = time.time()
