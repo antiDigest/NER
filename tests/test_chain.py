@@ -6,25 +6,21 @@
 import time
 
 
-def test_chain_import():
+# def test_chain_import():
 
-    from ConditionalRandomField.ConditionalRandomField import Chain
-
-    d = DataSet()
-    for row in d.iterate():
-        print row
-        break
+#     import ConditionalRandomField
+#     from ConditionalRandomField import ConditionalRandomField
+#     from ConditionalRandomField import Chain
 
 
-def test_data_to_records():
-    from DataSet import DataSet
+# def test_chain_probability():
+#     import ConditionalRandomField
+#     from ConditionalRandomField import ConditionalRandomField
+#     from ConditionalRandomField import Chain
+#     from DataSet import DataSet
 
-    d = DataSet()
-    r = None
-    for row in d.iterate():
-        r = row
-        break
-
-    for row in d.to_records():
-        assert r[1] == row[1].split(';')
-        break
+#     d = DataSet()
+#     for row in d.iterate():
+#         crf = Chain(row[0], row[1], d.startProbability())
+#         print crf.probability()
+#         break
