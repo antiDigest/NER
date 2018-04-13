@@ -6,5 +6,5 @@ setup(name='NER',
       author='Antriksh Agarwal',
       author_email='antriksh.agarwal1@utdallas.edu',
       url='',
-      packages=find_packages()
+      packages=['NER']
       )
