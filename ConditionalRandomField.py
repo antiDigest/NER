@@ -45,7 +45,8 @@ class ConditionalRandomField:
 
             Z = self.forward(weights)  # Denominator
 
-            return np.exp(num) / Z
+            P = np.exp(num) / Z
+            return P / sum(P)
 
         def featureMap(self, t):
             features = np.zeros(len(entities.keys()))
@@ -77,20 +78,53 @@ class ConditionalRandomField:
 
         return self.chains
 
-    def train(self):
+    def train(self, alpha=0.1):
 
         self.getChains()
-        empirical = 0
+
+        featureCount = np.zeros(self.featureSize)
         for chain in self.chains:
             features = np.zeros(self.featureSize)
             for t in xrange(0, chain.T):
                 features = features + chain.featureMap(t)
 
-            print features
-            break
+            featureCount += features
+            # break
 
+        empirical = featureCount
+        print empirical
+
+        for its in xrange(0, 1000):
+
+            chainProb = 0
+            for chain in self.chains:
+                p = chain.probability(self.weights)
+                print p
+                features = np.zeros(self.featureSize)
+                for t in xrange(0, chain.T):
+                    features = features + chain.featureMap(t)
+
+                featureCount += features
+                chainProb = chainProb + p * featureCount
+                print chainProb
+
+            self.weights = self.weights + \
+                (alpha * (empirical - chainProb)) - \
+                self.regularize(self.weights)
+            print self.weights
+
+            alpha = 2 / (2 + its)
+
+    def regularize(self, weights):
+        return sum(np.square(weights)) / (2 * self.featureSize)
 
 if __name__ == '__main__':
-    d = DataSet()
+    d = DataSet('demo/sample.csv')
     crf = ConditionalRandomField(d)
     crf.train()
+    # chains = crf.getChains()
+    # for chain in chains:
+    #     print chain.sentence
+    #     print chain.labels
+    #     print chain.probability(crf.weights)
+    #     break

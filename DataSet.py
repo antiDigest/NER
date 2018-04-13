@@ -10,6 +10,13 @@ from Entities import *
 
 
 class DataSet(object):
+    """
+        DataSet class:
+        * Imports dataset from file
+        * converts the dataset into <observation, tags> tuples
+        * provides an iteration over the tuples
+        * to_records returns the list of tuples
+    """
 
     def __init__(self, FILE="data/kaggle/ner_dataset.csv"):
         self.source = self.data = pd.read_csv(
@@ -38,8 +45,7 @@ class DataSet(object):
         pi = np.zeros(len(entities.keys()))
         for row in self.iterate():
             pi[getEntity(row[1][0])] += 1
-
-        return pi / sum(pi)
+        return (pi / sum(pi))
 
     def to_records(self):
         return self.data.to_records()
