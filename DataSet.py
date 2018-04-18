@@ -2,11 +2,13 @@
 # @author: Antriksh Agarwal
 # Version 0: 4/12/2018
 
+from __future__ import print_function
 import numpy as np
 import pandas as pd
 import math
 import time
 from Entities import *
+from collections import OrderedDict
 
 
 class DataSet(object):
@@ -31,7 +33,7 @@ class DataSet(object):
 
     def preprocess(self):
         self.data = self.data.groupby("Sentence #").agg({'Word': lambda x: ";".join(x),
-                                                         'Tag': lambda x: ";".join(x)})
+                                                         'Tag': lambda x: ";".join(x)})[['Word', 'Tag']]
 
     def add(self, sentence, label):
         self.sentences.append(sentence)
@@ -39,7 +41,7 @@ class DataSet(object):
 
     def iterate(self):
         for row in self.data.to_records():
-            yield row[2].split(';'), row[1].split(';')
+            yield row[1].split(';'), row[2].split(';')
 
     def startProbability(self):
         pi = np.zeros(len(entities.keys()))
@@ -50,10 +52,14 @@ class DataSet(object):
     def to_records(self):
         return self.data.to_records()
 
+    def rows(self):
+        return len(self.data.index)
+
+
 if __name__ == '__main__':
     start = time.time()
     d = DataSet()
-    print time.time() - start
+    print(time.time() - start)
     for row in d.iterate():
-        print row
+        print(row)
         break

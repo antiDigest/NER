@@ -1,8 +1,9 @@
 
+from __future__ import print_function
 import pandas as pd
 import numpy as np
 from DataSet import DataSet
-from Entities import *
+from utils import *
 
 
 class ConditionalRandomField:
@@ -17,7 +18,7 @@ class ConditionalRandomField:
             self.labels = tags
             self.sentence = sentence
             self.pi = pi
-            self.states = states
+            self.states = len(entities.keys())
 
         def __str__(self):
             return " ".join(self.sentence) + ": " + " ".join(self.labels)
@@ -39,19 +40,17 @@ class ConditionalRandomField:
                     # last layer !
             """
 
-            num = np.zeros(len(entities.keys()))  # Numerator
+            num = np.zeros(len(weights))  # Numerator
             for t in xrange(0, self.T):
                 num = num + np.multiply(weights, self.featureMap(t))
 
             Z = self.forward(weights)  # Denominator
 
-            P = np.exp(num) / Z
-            return P / sum(P)
+            return np.exp(num) / Z
+            # return P / sum(P)
 
         def featureMap(self, t):
-            features = np.zeros(len(entities.keys()))
-            features[getEntity(self.labels[t])] = 1
-            return features
+            return getFeatureMap(self.sentence, t)
 
         def forward(self, weights):
             alpha = np.zeros((self.T, self.states))
@@ -66,7 +65,9 @@ class ConditionalRandomField:
 
     def __init__(self, dataset):
         self.data = dataset
-        self.featureSize = len(entities.keys())
+        self.M = dataset.rows()
+        print self.M
+        self.featureSize = NUMFEATURES
         self.weights = np.ones(self.featureSize)
         self.chains = []
 
@@ -78,7 +79,7 @@ class ConditionalRandomField:
 
         return self.chains
 
-    def train(self, alpha=0.1):
+    def train(self, alpha=1):
 
         self.getChains()
 
@@ -94,37 +95,86 @@ class ConditionalRandomField:
         empirical = featureCount
         print empirical
 
-        for its in xrange(0, 1000):
+        chainProb = 0
+        its = 0
+        while sum(empirical / - chainProb) > 0.00001:
 
-            chainProb = 0
             for chain in self.chains:
-                p = chain.probability(self.weights)
-                print p
+                p = chain.forward(self.weights)
+
                 features = np.zeros(self.featureSize)
                 for t in xrange(0, chain.T):
                     features = features + chain.featureMap(t)
 
                 featureCount += features
                 chainProb = chainProb + p * featureCount
-                print chainProb
+                # print chainProb
 
             self.weights = self.weights + \
-                (alpha * (empirical - chainProb)) - \
-                self.regularize(self.weights)
-            print self.weights
+                (alpha * (empirical - chainProb))  # - \
+            # self.regularize(self.weights)
+            # print self.weights
 
             alpha = 2 / (2 + its)
+            its += 1
 
     def regularize(self, weights):
         return sum(np.square(weights)) / (2 * self.featureSize)
+
+    # def viterbi(self, chain):
+    #     """
+    #         The State sequence generator, takes as input the probability of next state given the first
+    #         and the probability of having one state given an observation and maximises the sequence that
+    #         can be made.
+    #         This function generates the viterbi sequence for a set of observations.
+    #     """
+
+    #     viterbi = [{}]
+
+    #     for state in xrange(0, self.states):
+    #         prob = np.exp(sum(weights * self.featureMap(t - 1))
+    #                       ) * self.pi[state]
+    #         viterbi[0][state] = {'prob': prob, 'prev': None}
+
+    #     for t in range(1, self.T):
+    #         viterbi.append({})
+    #         for state in self.states:
+    #             # max(Prev_prob * trans_prob, prev)
+    #             maxProb, prevState = max([(np.exp(sum(weights * self.featureMap(t - 1))) *
+    #                                        viterbi[t - 1][prev]['prob'], prev)
+    #                                       for prev in states], key=lambda i: i[0])
+    #             # max(prev_prob * trans_prob, prev_prob) * emission_prob
+    #             # emission_prob: probability of observation given the label
+    #             maxProb = maxProb * \
+    #                 np.exp(sum(weights * self.featureMap(t - 1)))
+
+    #             viterbi[t][state] = {'prob': maxProb, 'prev': prevState}
+
+    #         # print viterbi[t]
+
+    #     max_elem, max_prob, max_prev = max([(key, value["prob"], value['prev'])
+    # for key, value in viterbi[-1].items()], key=lambda i: i[1])
+
+    #     sequence = []
+    #     sequence.insert(0, max_elem)
+
+    #     k = len(viterbi) - 2
+    #     while max_prev != None:
+    #         sequence.insert(0, max_prev)
+    #         max_prev = viterbi[k][max_prev]['prev']
+    #         k -= 1
+
+    #     return sequence
 
 if __name__ == '__main__':
     d = DataSet('demo/sample.csv')
     crf = ConditionalRandomField(d)
     crf.train()
-    # chains = crf.getChains()
+    chains = crf.getChains()
+    crf.train()
     # for chain in chains:
     #     print chain.sentence
     #     print chain.labels
     #     print chain.probability(crf.weights)
+    #     print crf.viterbi(chain)
     #     break
