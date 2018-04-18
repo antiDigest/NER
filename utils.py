@@ -2,6 +2,7 @@
 # @author: Antriksh Agarwal
 # Version 0: 4/13/2018
 
+from __future__ import print_function
 import numpy as np
 
 # Named Entities:
