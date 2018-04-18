@@ -66,7 +66,6 @@ class ConditionalRandomField:
     def __init__(self, dataset):
         self.data = dataset
         self.M = dataset.rows()
-        print self.M
         self.featureSize = NUMFEATURES
         self.weights = np.ones(self.featureSize)
         self.chains = []
@@ -79,7 +78,7 @@ class ConditionalRandomField:
 
         return self.chains
 
-    def train(self, alpha=1):
+    def train(self, alpha=0.1):
 
         self.getChains()
 
@@ -93,11 +92,11 @@ class ConditionalRandomField:
             # break
 
         empirical = featureCount
-        print empirical
+        print(empirical)
 
         chainProb = 0
         its = 0
-        while sum(empirical / - chainProb) > 0.00001:
+        while sum(empirical / self.M - chainProb) > 0.00001:
 
             for chain in self.chains:
                 p = chain.forward(self.weights)
@@ -108,12 +107,12 @@ class ConditionalRandomField:
 
                 featureCount += features
                 chainProb = chainProb + p * featureCount
-                # print chainProb
+                # print (chainProb)
 
             self.weights = self.weights + \
                 (alpha * (empirical - chainProb))  # - \
             # self.regularize(self.weights)
-            # print self.weights
+            print(self.weights)
 
             alpha = 2 / (2 + its)
             its += 1
