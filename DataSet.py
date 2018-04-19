@@ -8,7 +8,7 @@ import pandas as pd
 import math
 import time
 from Entities import *
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 
 
 class DataSet(object):
@@ -33,7 +33,8 @@ class DataSet(object):
 
     def preprocess(self):
         self.data = self.data.groupby("Sentence #").agg({'Word': lambda x: ";".join(x),
-                                                         'Tag': lambda x: ";".join(x)})[['Word', 'Tag']]
+                                                         'Tag': lambda x: ";".join(x),
+                                                         'POS': lambda x: ";".join(x)})[['Word', 'Tag', 'POS']]
 
     def add(self, sentence, label):
         self.sentences.append(sentence)
@@ -41,7 +42,7 @@ class DataSet(object):
 
     def iterate(self):
         for row in self.data.to_records():
-            yield row[1].split(';'), row[2].split(';')
+            yield row[1].split(';'), row[2].split(';'), row[3].split(';')
 
     def startProbability(self):
         pi = np.zeros(len(entities.keys()))
@@ -55,11 +56,38 @@ class DataSet(object):
     def rows(self):
         return len(self.data.index)
 
+    def unigrams(self):
+        wordSet = []
+        for row in self.iterate():
+            wordSet += row[0]
+
+        return list(np.unique(wordSet))
+
+    def unipos(self):
+        wordSet = []
+        for row in self.iterate():
+            wordSet += row[2]
+
+        return list(np.unique(wordSet))
+
+    def transition(self):
+        for tag in entities.keys():
+            num = self.source[self.source['Tag'] == tag]
+            for index in num.index:
+                print(num[index:index + 1])
+                break
+            print(len(num.index))
+
+    def emission(self):
+        pass
+
 
 if __name__ == '__main__':
     start = time.time()
     d = DataSet()
     print(time.time() - start)
-    for row in d.iterate():
-        print(row)
-        break
+    # for row in d.iterate():
+    #     print(row)
+    #     break
+
+    d.transition()

@@ -6,19 +6,23 @@ from DataSet import DataSet
 from utils import *
 
 
-class ConditionalRandomField:
+class ConditionalRandomField(object):
 
-    class Chain:
+    class Chain(object):
 
-        def __init__(self, sentence, tags, pi, states):
+        def __init__(self, sentence, tags, pos, pi, states, unigrams, unipos):
             assert type(sentence) == list, "Sentence should be a list."
             assert type(tags) == list, "Tags should be a list."
+            assert type(pos) == list, "POS should be a list."
 
             self.T = len(sentence)
             self.labels = tags
+            self.pos = pos
             self.sentence = sentence
             self.pi = pi
             self.states = len(entities.keys())
+            self.unigrams = unigrams
+            self.unipos = unipos
 
         def __str__(self):
             return " ".join(self.sentence) + ": " + " ".join(self.labels)
@@ -49,8 +53,8 @@ class ConditionalRandomField:
             return np.exp(num) / Z
             # return P / sum(P)
 
-        def featureMap(self, t):
-            return getFeatureMap(self.sentence, t)
+        def featureMap(self, word):
+            return getFeatureMap(self.sentence, self.pos, t, self.unigrams, self.unipos, self.data)
 
         def forward(self, weights):
             alpha = np.zeros((self.T, self.states))
@@ -58,9 +62,21 @@ class ConditionalRandomField:
 
             for t in xrange(1, self.T):
                 for state in xrange(0, self.states):
+                    # print("Alpha: " + str(alpha[t - 1, :]))
+                    # print("Feature Map: " + str(self.featureMap(t - 1)))
+                    # print("Weights: " + str(weights))
+                    # print("Feature(without sum): " +
+                    #       str(weights * self.featureMap(t - 1)))
+                    print("Feature(without exp): " +
+                          str(sum(weights * self.featureMap())))
+                    # print("Feature: " +
+                    #       str(np.exp(sum(weights * self.featureMap(t - 1)))))
+                    # print(
+                    #     "New Alpha: " + str(alpha[t - 1, :] * np.exp(sum(weig
                     alpha[t, state] = sum(
-                        alpha[t - 1, :] * np.exp(sum(weights * self.featureMap(t - 1))))
+                        alpha[t - 1, :] * sum(weights * self.featureMap(t - 1)))
 
+                print("New Alpha Vector: " + str(alpha[t, :]))
             return sum(alpha[-1, :])
 
     def __init__(self, dataset):
@@ -69,11 +85,13 @@ class ConditionalRandomField:
         self.featureSize = NUMFEATURES
         self.weights = np.ones(self.featureSize)
         self.chains = []
+        self.unigrams = self.data.unigrams()
+        self.unipos = self.data.unipos()
 
     def getChains(self):
         for row in self.data.iterate():
-            chain = self.Chain(row[0], row[1],
-                               self.data.startProbability(), self.featureSize)
+            chain = self.Chain(row[0], row[1], row[2], self.data.startProbability(
+            ), self.featureSize, self.unigrams, self.unipos)
             self.chains.append(chain)
 
         return self.chains
@@ -94,10 +112,11 @@ class ConditionalRandomField:
         empirical = featureCount
         print(empirical)
 
-        chainProb = 0
         its = 0
+        chainProb = 0
         while sum(empirical / self.M - chainProb) > 0.00001:
 
+            chainProb = 0
             for chain in self.chains:
                 p = chain.forward(self.weights)
 
@@ -168,12 +187,11 @@ class ConditionalRandomField:
 if __name__ == '__main__':
     d = DataSet('demo/sample.csv')
     crf = ConditionalRandomField(d)
-    crf.train()
+    # crf.train()
     chains = crf.getChains()
-    crf.train()
-    # for chain in chains:
-    #     print chain.sentence
-    #     print chain.labels
-    #     print chain.probability(crf.weights)
-    #     print crf.viterbi(chain)
-    #     break
+    # crf.train()
+    for chain in chains:
+        print(" ".join(chain.sentence))
+        print(chain.forward(crf.weights))
+        # print crf.viterbi(chain)
+        break
