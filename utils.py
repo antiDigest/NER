@@ -21,7 +21,7 @@ entities = dict({'O': 0, 'geo': 1, 'org': 2, 'per': 3,
                  'gpe': 4, 'tim': 5, 'art': 6, 'eve': 7, 'nat': 8})
 nouns = {x.name().split('.', 1)[0] for x in wn.all_synsets('n')}
 dictionary=PyDictionary()
-NUMFEATURES = 18
+NUMFEATURES = 19
 
 
 def getEntity(label):
@@ -66,6 +66,11 @@ def extractFeatures(sentence, pos, wordindex, unigrams, unipos, dataset):
         next_pos = -2
 
     # d = Data
+    # print("Current pos tags", pos[wordindex])
+    # if next_pos != -2:
+    #     print("Next POS", pos[next_pos])
+    # else:
+    #     print("NO POS NExt")
 
     features = {
         'isupper': word.isupper(),
@@ -81,7 +86,9 @@ def extractFeatures(sentence, pos, wordindex, unigrams, unipos, dataset):
          #checking in wordnet for nouns
         'isNoun1': isNoun(word),
          #checking in pyDictionary for nouns
-        'isNoun2': "Noun" in dictionary.meaning(word).keys(),
+        'isNoun2': dictionary.meaning(word) != None and "Noun" in dictionary.meaning(word).keys(),
+         #if next word is Verb
+        'isNoun3' : next_pos != -2 and (pos[next_pos] == "VBZ" or pos[next_pos] == "VH" or pos[next_pos] == "VHD" or pos[next_pos] == "VHN" or pos[next_pos] == "VHP" or pos[next_pos] == "VV"or pos[next_pos] == "VVD"),
         'isCompany': (word.isupper() or word[0].isupper()) and (sentence[wordindex + 1].lower() == "inc" or sentence[wordindex + 1].lower() == "inc."),
         'isOrg': (word.isupper() or word[0].isupper()) and (sentence[wordindex + 1].lower() == "org" or sentence[wordindex + 1].lower() == "org."),
         'isCity1': (word.isupper() or word[0].isupper()) and "city" in sentence[wordindex + 1].lower(),
