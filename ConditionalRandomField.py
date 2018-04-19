@@ -10,7 +10,7 @@ class ConditionalRandomField(object):
 
     class Chain(object):
 
-        def __init__(self, sentence, tags, pos, pi, states, unigrams, unipos):
+        def __init__(self, sentence, tags, pos, pi, states, unigrams, unipos, dataset):
             assert type(sentence) == list, "Sentence should be a list."
             assert type(tags) == list, "Tags should be a list."
             assert type(pos) == list, "POS should be a list."
@@ -23,6 +23,7 @@ class ConditionalRandomField(object):
             self.states = len(entities.keys())
             self.unigrams = unigrams
             self.unipos = unipos
+            self.dataset = dataset
 
         def __str__(self):
             return " ".join(self.sentence) + ": " + " ".join(self.labels)
@@ -54,7 +55,7 @@ class ConditionalRandomField(object):
             # return P / sum(P)
 
         def featureMap(self, word):
-            return getFeatureMap(self.sentence, self.pos, t, self.unigrams, self.unipos, self.data)
+            return getFeatureMap(self.sentence, self.pos, word, self.unigrams, self.unipos, self.dataset)
 
         def forward(self, weights):
             alpha = np.zeros((self.T, self.states))
@@ -68,13 +69,13 @@ class ConditionalRandomField(object):
                     # print("Feature(without sum): " +
                     #       str(weights * self.featureMap(t - 1)))
                     print("Feature(without exp): " +
-                          str(sum(weights * self.featureMap())))
+                          str(sum(weights * self.featureMap(self.sentence[t-1]))))
                     # print("Feature: " +
                     #       str(np.exp(sum(weights * self.featureMap(t - 1)))))
                     # print(
                     #     "New Alpha: " + str(alpha[t - 1, :] * np.exp(sum(weig
                     alpha[t, state] = sum(
-                        alpha[t - 1, :] * sum(weights * self.featureMap(t - 1)))
+                        alpha[t - 1, :] * sum(weights * self.featureMap(self.sentence[t-1])))
 
                 print("New Alpha Vector: " + str(alpha[t, :]))
             return sum(alpha[-1, :])
@@ -91,7 +92,7 @@ class ConditionalRandomField(object):
     def getChains(self):
         for row in self.data.iterate():
             chain = self.Chain(row[0], row[1], row[2], self.data.startProbability(
-            ), self.featureSize, self.unigrams, self.unipos)
+            ), self.featureSize, self.unigrams, self.unipos, self.data)
             self.chains.append(chain)
 
         return self.chains

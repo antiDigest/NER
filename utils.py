@@ -4,6 +4,8 @@
 
 from __future__ import print_function
 import numpy as np
+from nltk.corpus import wordnet as wn
+from PyDictionary import PyDictionary
 
 # Named Entities:
 #   geo = Geographical Entity
@@ -17,8 +19,9 @@ import numpy as np
 
 entities = dict({'O': 0, 'geo': 1, 'org': 2, 'per': 3,
                  'gpe': 4, 'tim': 5, 'art': 6, 'eve': 7, 'nat': 8})
-
-NUMFEATURES = 10
+nouns = {x.name().split('.', 1)[0] for x in wn.all_synsets('n')}
+dictionary=PyDictionary()
+NUMFEATURES = 18
 
 
 def getEntity(label):
@@ -29,10 +32,10 @@ def getEntity(label):
     return 0
 
 
-def getFeatureMap(sentence, pos, word, unigrams, unipos, prevProb, obsProb):
+def getFeatureMap(sentence, pos, word, unigrams, unipos, dataset):
     wordindex = sentence.index(word)
     features = extractFeatures(
-        sentence, pos, wordindex, unigrams, unipos, prevProb, obsProb)
+        sentence, pos, wordindex, unigrams, unipos, dataset)
 
     featureMap = np.zeros(NUMFEATURES)
     for index, feature in enumerate(features.keys()):
@@ -41,7 +44,7 @@ def getFeatureMap(sentence, pos, word, unigrams, unipos, prevProb, obsProb):
     return featureMap
 
 
-def extractFeatures(sentence, pos, wordindex, unigrams, unipos, prevProb, obsProb):
+def extractFeatures(sentence, pos, wordindex, unigrams, unipos, dataset):
     # TODO: how to handle non-binary features
     word = sentence[wordindex]
     word_pos = pos[wordindex]
@@ -75,7 +78,20 @@ def extractFeatures(sentence, pos, wordindex, unigrams, unipos, prevProb, obsPro
         'pos': unipos.index(word_pos),
         'pos_next': next_pos,
         'pos_prev': prev_pos,
-        'prev_state_prob': prevProb,
-        'obs_prob': obsProb
+         #checking in wordnet for nouns
+        'isNoun1': isNoun(word),
+         #checking in pyDictionary for nouns
+        'isNoun2': "Noun" in dictionary.meaning(word).keys(),
+        'isCompany': (word.isupper() or word[0].isupper()) and (sentence[wordindex + 1].lower() == "inc" or sentence[wordindex + 1].lower() == "inc."),
+        'isOrg': (word.isupper() or word[0].isupper()) and (sentence[wordindex + 1].lower() == "org" or sentence[wordindex + 1].lower() == "org."),
+        'isCity1': (word.isupper() or word[0].isupper()) and "city" in sentence[wordindex + 1].lower(),
+        'isCounty1': (word.isupper() or word[0].isupper()) and "county" in sentence[wordindex + 1].lower(),
+        'isCity2': (word.isupper() or word[0].isupper()) and "city of" in sentence[wordindex - 1].lower(),
+        'isCounty2': (word.isupper() or word[0].isupper()) and "county of" in sentence[wordindex - 1].lower(),
+        # 'prev_state_prob': prevProb,
+        # 'obs_prob': obsProb
     }
     return features
+
+def isNoun(word):
+    return True
