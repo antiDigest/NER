@@ -94,4 +94,7 @@ def extractFeatures(sentence, pos, wordindex, unigrams, unipos, dataset):
     return features
 
 def isNoun(word):
-    return True
+    if word in nouns:
+        return True
+    else:
+        return False
