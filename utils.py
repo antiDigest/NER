@@ -20,14 +20,20 @@ from PyDictionary import PyDictionary
 entities = dict({'O': 0, 'geo': 1, 'org': 2, 'per': 3,
                  'gpe': 4, 'tim': 5, 'art': 6, 'eve': 7, 'nat': 8})
 nouns = {x.name().split('.', 1)[0] for x in wn.all_synsets('n')}
-dictionary=PyDictionary()
+dictionary = PyDictionary()
 NUMFEATURES = 18
 
 
 def getEntity(label):
+
+    if label == []:
+        return -1
+    else:
+        label = label[0]
+
     for entity in entities.keys():
         if entity in label:
-            return entities[entity]
+            return entity
 
     return 0
 
@@ -78,9 +84,9 @@ def extractFeatures(sentence, pos, wordindex, unigrams, unipos, dataset):
         'pos': unipos.index(word_pos),
         'pos_next': next_pos,
         'pos_prev': prev_pos,
-         #checking in wordnet for nouns
+        # checking in wordnet for nouns
         'isNoun1': isNoun(word),
-         #checking in pyDictionary for nouns
+        # checking in pyDictionary for nouns
         'isNoun2': "Noun" in dictionary.meaning(word).keys(),
         'isCompany': (word.isupper() or word[0].isupper()) and (sentence[wordindex + 1].lower() == "inc" or sentence[wordindex + 1].lower() == "inc."),
         'isOrg': (word.isupper() or word[0].isupper()) and (sentence[wordindex + 1].lower() == "org" or sentence[wordindex + 1].lower() == "org."),
@@ -92,6 +98,7 @@ def extractFeatures(sentence, pos, wordindex, unigrams, unipos, dataset):
         # 'obs_prob': obsProb
     }
     return features
+
 
 def isNoun(word):
     return True

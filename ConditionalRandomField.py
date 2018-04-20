@@ -69,13 +69,13 @@ class ConditionalRandomField(object):
                     # print("Feature(without sum): " +
                     #       str(weights * self.featureMap(t - 1)))
                     print("Feature(without exp): " +
-                          str(sum(weights * self.featureMap(self.sentence[t-1]))))
+                          str(sum(weights * self.featureMap(self.sentence[t - 1]))))
                     # print("Feature: " +
                     #       str(np.exp(sum(weights * self.featureMap(t - 1)))))
                     # print(
                     #     "New Alpha: " + str(alpha[t - 1, :] * np.exp(sum(weig
                     alpha[t, state] = sum(
-                        alpha[t - 1, :] * sum(weights * self.featureMap(self.sentence[t-1])))
+                        alpha[t - 1, :] * sum(weights * self.featureMap(self.sentence[t - 1])))
 
                 print("New Alpha Vector: " + str(alpha[t, :]))
             return sum(alpha[-1, :])

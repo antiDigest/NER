@@ -1,6 +1,11 @@
 .DS_Store
 */*.DS_Store
 data/
+.pytest_cache/
+.idea/
+*.xml
+*.iml
+out.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

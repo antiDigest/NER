@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 import math
 import time
-from Entities import *
 from collections import OrderedDict, Counter
+from utils import *
 
 
 class DataSet(object):
@@ -27,6 +27,7 @@ class DataSet(object):
         self.labels = []
         self.club()
         self.preprocess()
+        self.M = len(self.source.index)
 
     def club(self):
         self.data.fillna(method='ffill', inplace=True)
@@ -71,23 +72,68 @@ class DataSet(object):
         return list(np.unique(wordSet))
 
     def transition(self):
-        for tag in entities.keys():
-            num = self.source[self.source['Tag'] == tag]
-            for index in num.index:
-                print(num[index:index + 1])
-                break
-            print(len(num.index))
+
+        entityList = sorted(entities.keys())
+        S = len(entityList)
+        transProb = np.zeros((S, S))
+
+        for tagIndex, tag in enumerate(entityList):
+            num = self.source[self.source['Tag'].str.contains(tag)]
+
+            indexes = num.index.values
+            indexes = [index + 1 for index in indexes if index < self.M - 1]
+
+            for nextTag in entityList:
+                nextNum = self.source.iloc[indexes, :][
+                    self.source.iloc[indexes, :]['Tag'].str.contains(nextTag)]
+                transProb[tagIndex, entityList.index(
+                    nextTag)] = len(nextNum.index)
+
+            transProb[tagIndex, :] = transProb[tagIndex, :] / len(num.index)
+
+        self.transProb = transProb
+        return transProb
 
     def emission(self):
-        pass
+        entityList = sorted(entities.keys())
+        emission = {}
+
+        emission = self.source[['Word', 'Tag', 'Sentence #']].groupby(
+            ['Word', 'Tag']).agg(['count'])
+
+        tagCount = self.source[['Word', 'Tag']].groupby(
+            ['Tag']).agg(['count']).rename(columns={'count': 'count'})
+
+        print(tagCount.columns.values)
+        print(tagCount)
+        print(tagCount['Word']['Tag'])
+        print(tagCount['Word']['count'])
+
+        for tagIndex, tag in enumerate(entityList):
+            countSum = tagCount[tagCount['Tag'].str.contains(tag)][
+                'count'].values
+            print(countSum)
+            break
+
+        self.emission = emission
+        return emission
 
 
 if __name__ == '__main__':
+    print("INIT")
     start = time.time()
     d = DataSet()
     print(time.time() - start)
-    # for row in d.iterate():
-    #     print(row)
-    #     break
 
-    d.transition()
+    print("CALCULATING PROBABILITIES")
+    # start = time.time()
+    # transProb = d.transition()
+    # print(time.time() - start)
+
+    # print(transProb)
+
+    start = time.time()
+    emission = d.emission()
+    print(time.time() - start)
+
+    # print(emission)
