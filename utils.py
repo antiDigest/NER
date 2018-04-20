@@ -37,7 +37,10 @@ def getFeatureMap(sentence, pos, labels, word, dataset):
 
     featureMap = np.zeros(NUMFEATURES)
     for index, feature in enumerate(features.keys()):
-        featureMap[index] = features[feature]
+        if feature == np.nan:
+            featureMap[index] = 0.
+        else:
+            featureMap[index] = features[feature]
 
     return featureMap
 
@@ -89,9 +92,9 @@ def extractFeatures(sentence, pos, labels, wordindex, dataset):
         'isNoun1': isNoun(word),
         # if next word is Verb
         # if Next POS is Verb
-        'is_next_verb1': next_pos != -2 and (pos[next_pos] == "VBZ"),
-        'is_next_verb2': next_pos != -2 and (pos[next_pos] == "VH" or pos[next_pos] == "VHD" or pos[next_pos] == "VHN"),
-        'is_next_verb3': next_pos != -2 and (pos[next_pos] == "VV" or pos[next_pos] == "VVD"),
+        'is_next_verb1': next_pos != -2 or (pos[next_pos] == "VBZ"),
+        'is_next_verb2': next_pos != -2 or (pos[next_pos] == "VH" or pos[next_pos] == "VHD" or pos[next_pos] == "VHN"),
+        'is_next_verb3': next_pos != -2 or (pos[next_pos] == "VV" or pos[next_pos] == "VVD"),
         'isCompany': (word.isupper() or word[0].isupper()) and (sentence[wordindex + 1].lower() == "inc" or sentence[wordindex + 1].lower() == "inc."),
         'isOrg': (word.isupper() or word[0].isupper()) and (sentence[wordindex + 1].lower() == "org" or sentence[wordindex + 1].lower() == "org."),
         'isCity1': (word.isupper() or word[0].isupper()) and "city" in sentence[wordindex + 1].lower(),
@@ -103,7 +106,7 @@ def extractFeatures(sentence, pos, labels, wordindex, dataset):
     }
 
     if prev_label != -1:
-        features['prev_state_prob'] = dataset.transProb[word_label, prev_label]
+        features['prev_state_prob'] = dataset.transProb[prev_label, word_label]
 
     obs_prob = dataset.emission(word_label, word)
     if obs_prob != -1:

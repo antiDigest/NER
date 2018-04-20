@@ -84,7 +84,11 @@ class DataSet(object):
                 transProb[tagIndex, entityList.index(
                     nextTag)] = len(nextNum.index)
 
-            transProb[tagIndex, :] = transProb[tagIndex, :] / len(num.index)
+            if len(num.index) != 0:
+                transProb[tagIndex, :] = transProb[
+                    tagIndex, :] / len(num.index)
+            else:
+                transProb[tagIndex, :] = 0
 
         self.transProb = transProb
 
@@ -111,12 +115,12 @@ if __name__ == '__main__':
     print(time.time() - start)
 
     print("CALCULATING PROBABILITIES")
-    print(d.unigrams)
+    # print(d.unigrams)
     # start = time.time()
     # transProb = d.transition()
     # print(time.time() - start)
 
-    # print(transProb)
+    print(d.transProb)
 
     # start = time.time()
     # emission = d.emission('O', 'the')

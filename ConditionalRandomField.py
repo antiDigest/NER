@@ -60,11 +60,7 @@ class ConditionalRandomField(object):
             alpha[0, :] = self.pi
 
             for t in xrange(1, self.T):
-                print("Feature Map: " +
-                      str(self.featureMap(self.sentence[t - 1])))
-                print("Feature: " +
-                      str(np.exp(weights * self.featureMap(self.sentence[t - 1]))))
-                f = np.exp(weights * self.featureMap(self.sentence[t - 1]))
+                f = weights * self.featureMap(self.sentence[t - 1])
                 for state in xrange(0, self.states):
                     alpha[t, state] = sum(alpha[t - 1, :] * sum(f))
 
@@ -94,39 +90,44 @@ class ConditionalRandomField(object):
         for chain in self.chains:
             features = np.zeros(self.featureSize)
             for t in xrange(0, chain.T):
-                features = features + chain.featureMap(t)
-
+                features = features + chain.featureMap(chain.sentence[t])
             featureCount += features
             # break
 
         empirical = featureCount
         print(empirical)
 
+        # self.weights = empirical
+
         its = 0
         chainProb = 0
-        while sum(empirical / self.M - chainProb) > 0.00001:
+        while sum(empirical - chainProb) > 0.00001:
+            # for its in xrange(0, 1000):
 
             chainProb = 0
             for chain in self.chains:
                 p = chain.forward(self.weights)
 
-                features = np.zeros(self.featureSize)
-                for t in xrange(0, chain.T):
-                    features = features + chain.featureMap(t)
+                # features = np.zeros(self.featureSize)
+                # for t in xrange(0, chain.T):
+                #     features = features + chain.featureMap(chain.sentence[t])
 
-                featureCount += features
-                chainProb = chainProb + p * featureCount
+                # featureCount += features
+                chainProb = chainProb + p
                 # print (chainProb)
 
             self.weights = self.weights + \
-                (alpha * (empirical - chainProb))  # - \
-            # self.regularize(self.weights)
+                (alpha * (sum(empirical) - chainProb)) - \
+                self.regularize(self.weights)
             print(self.weights)
 
             alpha = 2 / (2 + its)
-            its += 1
+            # its += 1
+            if its == 4:
+                break
 
     def regularize(self, weights):
+        print(sum(np.square(weights)) / (2 * self.featureSize))
         return sum(np.square(weights)) / (2 * self.featureSize)
 
     # def viterbi(self, chain):
@@ -178,10 +179,10 @@ if __name__ == '__main__':
     d = DataSet('demo/sample.csv')
     crf = ConditionalRandomField(d)
     # crf.train()
-    chains = crf.getChains()
-    # crf.train()
-    for chain in chains:
-        print(" ".join(chain.sentence))
-        print(chain.forward(crf.weights))
-        # print crf.viterbi(chain)
-        break
+    # chains = crf.getChains()
+    crf.train()
+    # for chain in chains:
+    #     print(" ".join(chain.sentence))
+    #     print(chain.forward(crf.weights))
+    #     # print crf.viterbi(chain)
+    #     break
