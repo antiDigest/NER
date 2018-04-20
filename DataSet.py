@@ -94,29 +94,17 @@ class DataSet(object):
         self.transProb = transProb
         return transProb
 
-    def emission(self):
+    def emission(self, label, word):
         entityList = sorted(entities.keys())
-        emission = {}
 
-        emission = self.source[['Word', 'Tag', 'Sentence #']].groupby(
-            ['Word', 'Tag']).agg(['count'])
+        emission = self.source[self.source['Word'] == word]
+        emissionCount = float(len(
+            emission[emission['Tag'].str.contains(label)].index))
 
-        tagCount = self.source[['Word', 'Tag']].groupby(
-            ['Tag']).agg(['count']).rename(columns={'count': 'count'})
+        tagCount = float(len(
+            self.source[self.source['Tag'].str.contains(label)].index))
 
-        print(tagCount.columns.values)
-        print(tagCount)
-        print(tagCount['Word']['Tag'])
-        print(tagCount['Word']['count'])
-
-        for tagIndex, tag in enumerate(entityList):
-            countSum = tagCount[tagCount['Tag'].str.contains(tag)][
-                'count'].values
-            print(countSum)
-            break
-
-        self.emission = emission
-        return emission
+        return emissionCount / tagCount
 
 
 if __name__ == '__main__':
@@ -133,7 +121,7 @@ if __name__ == '__main__':
     # print(transProb)
 
     start = time.time()
-    emission = d.emission()
+    emission = d.emission('O', 'the')
     print(time.time() - start)
 
-    # print(emission)
+    print(emission)

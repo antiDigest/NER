@@ -25,15 +25,9 @@ NUMFEATURES = 19
 
 
 def getEntity(label):
-
-    if label == []:
-        return -1
-    else:
-        label = label[0]
-
     for entity in entities.keys():
         if entity in label:
-            return entity
+            return entities[entity]
 
     return 0
 
