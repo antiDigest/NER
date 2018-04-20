@@ -21,7 +21,7 @@ entities = dict({'O': 0, 'geo': 1, 'org': 2, 'per': 3,
                  'gpe': 4, 'tim': 5, 'art': 6, 'eve': 7, 'nat': 8})
 nouns = {x.name().split('.', 1)[0] for x in wn.all_synsets('n')}
 dictionary = PyDictionary()
-NUMFEATURES = 19
+NUMFEATURES = 21
 
 
 def getEntity(label):
