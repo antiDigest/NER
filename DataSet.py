@@ -28,6 +28,9 @@ class DataSet(object):
         self.club()
         self.preprocess()
         self.M = len(self.source.index)
+        self.unigrams()
+        self.unipos()
+        self.transition()
 
     def club(self):
         self.data.fillna(method='ffill', inplace=True)
@@ -58,18 +61,10 @@ class DataSet(object):
         return len(self.data.index)
 
     def unigrams(self):
-        wordSet = []
-        for row in self.iterate():
-            wordSet += row[0]
-
-        return list(np.unique(wordSet))
+        self.unigrams = list(self.source['Word'].unique())
 
     def unipos(self):
-        wordSet = []
-        for row in self.iterate():
-            wordSet += row[2]
-
-        return list(np.unique(wordSet))
+        self.unipos = list(self.source['POS'].unique())
 
     def transition(self):
 
@@ -92,9 +87,11 @@ class DataSet(object):
             transProb[tagIndex, :] = transProb[tagIndex, :] / len(num.index)
 
         self.transProb = transProb
-        return transProb
 
     def emission(self, label, word):
+
+        label = entities.keys()[entities.values().index(label)]
+
         entityList = sorted(entities.keys())
 
         emission = self.source[self.source['Word'] == word]
@@ -114,14 +111,15 @@ if __name__ == '__main__':
     print(time.time() - start)
 
     print("CALCULATING PROBABILITIES")
+    print(d.unigrams)
     # start = time.time()
     # transProb = d.transition()
     # print(time.time() - start)
 
     # print(transProb)
 
-    start = time.time()
-    emission = d.emission('O', 'the')
-    print(time.time() - start)
+    # start = time.time()
+    # emission = d.emission('O', 'the')
+    # print(time.time() - start)
 
-    print(emission)
+    # print(emission)

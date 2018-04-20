@@ -10,7 +10,7 @@ class ConditionalRandomField(object):
 
     class Chain(object):
 
-        def __init__(self, sentence, tags, pos, pi, states, unigrams, unipos, dataset):
+        def __init__(self, sentence, tags, pos, pi, states, dataset):
             assert type(sentence) == list, "Sentence should be a list."
             assert type(tags) == list, "Tags should be a list."
             assert type(pos) == list, "POS should be a list."
@@ -21,8 +21,6 @@ class ConditionalRandomField(object):
             self.sentence = sentence
             self.pi = pi
             self.states = len(entities.keys())
-            self.unigrams = unigrams
-            self.unipos = unipos
             self.dataset = dataset
 
         def __str__(self):
@@ -55,29 +53,22 @@ class ConditionalRandomField(object):
             # return P / sum(P)
 
         def featureMap(self, word):
-            return getFeatureMap(self.sentence, self.pos, word, self.unigrams, self.unipos, self.dataset)
+            return getFeatureMap(self.sentence, self.pos, self.labels, word, self.dataset)
 
         def forward(self, weights):
             alpha = np.zeros((self.T, self.states))
             alpha[0, :] = self.pi
 
             for t in xrange(1, self.T):
+                print("Feature Map: " +
+                      str(self.featureMap(self.sentence[t - 1])))
+                print("Feature: " +
+                      str(np.exp(weights * self.featureMap(self.sentence[t - 1]))))
+                f = np.exp(weights * self.featureMap(self.sentence[t - 1]))
                 for state in xrange(0, self.states):
-                    # print("Alpha: " + str(alpha[t - 1, :]))
-                    # print("Feature Map: " + str(self.featureMap(t - 1)))
-                    # print("Weights: " + str(weights))
-                    # print("Feature(without sum): " +
-                    #       str(weights * self.featureMap(t - 1)))
-                    print("Feature(without exp): " +
-                          str(sum(weights * self.featureMap(self.sentence[t - 1]))))
-                    # print("Feature: " +
-                    #       str(np.exp(sum(weights * self.featureMap(t - 1)))))
-                    # print(
-                    #     "New Alpha: " + str(alpha[t - 1, :] * np.exp(sum(weig
-                    alpha[t, state] = sum(
-                        alpha[t - 1, :] * sum(weights * self.featureMap(self.sentence[t - 1])))
+                    alpha[t, state] = sum(alpha[t - 1, :] * sum(f))
 
-                print("New Alpha Vector: " + str(alpha[t, :]))
+            print("FORWARD: " + str(sum(alpha[-1, :])))
             return sum(alpha[-1, :])
 
     def __init__(self, dataset):
@@ -86,13 +77,11 @@ class ConditionalRandomField(object):
         self.featureSize = NUMFEATURES
         self.weights = np.ones(self.featureSize)
         self.chains = []
-        self.unigrams = self.data.unigrams()
-        self.unipos = self.data.unipos()
 
     def getChains(self):
         for row in self.data.iterate():
             chain = self.Chain(row[0], row[1], row[2], self.data.startProbability(
-            ), self.featureSize, self.unigrams, self.unipos, self.data)
+            ), self.featureSize, self.data)
             self.chains.append(chain)
 
         return self.chains
