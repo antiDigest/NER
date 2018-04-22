@@ -20,9 +20,10 @@ class DataSet(object):
         * to_records returns the list of tuples
     """
 
-    def __init__(self, FILE="data/kaggle/ner_dataset.csv"):
+    def __init__(self, FILE="data/kaggle/ner_dataset.csv", verbose=False):
         self.source = self.data = pd.read_csv(
             FILE, header=0, dtype={'Sentence #': str})
+        self.verbose = verbose
         self.sentences = []
         self.labels = []
         self.club()
@@ -33,9 +34,14 @@ class DataSet(object):
         self.transition()
 
     def club(self):
+        if self.verbose:
+            print(
+                "[INFO]: Handling missing values: filling inplace copying from top, most recent")
         self.data.fillna(method='ffill', inplace=True)
 
     def preprocess(self):
+        if self.verbose:
+            print("[INFO]: Grouping by sentence number")
         self.data = self.data.groupby("Sentence #").agg({'Word': lambda x: ";".join(x),
                                                          'Tag': lambda x: ";".join(x),
                                                          'POS': lambda x: ";".join(x)})[['Word', 'Tag', 'POS']]
@@ -49,10 +55,13 @@ class DataSet(object):
             yield row[1].split(';'), row[2].split(';'), row[3].split(';')
 
     def startProbability(self):
-        pi = np.zeros(len(entities.keys()))
+        if self.verbose:
+            print("[INFO]: Calculating initial starting probabilities from the dataset")
+
+        self.pi = np.zeros(len(entities.keys()))
         for row in self.iterate():
-            pi[getEntity(row[1][0])] += 1
-        return (pi / sum(pi))
+            self.pi[getEntity(row[1][0])] += 1
+        return (self.pi / sum(self.pi))
 
     def to_records(self):
         return self.data.to_records()
@@ -61,12 +70,18 @@ class DataSet(object):
         return len(self.data.index)
 
     def unigrams(self):
+        if self.verbose:
+            print("[INFO]: Extracting unigrams...")
         self.unigrams = list(self.source['Word'].unique())
 
     def unipos(self):
+        if self.verbose:
+            print("[INFO]: Extracting uni POS tags...")
         self.unipos = list(self.source['POS'].unique())
 
     def transition(self):
+        if self.verbose:
+            print("[INFO]: Pre-Calculating label transition probabilities...")
 
         entityList = sorted(entities.keys())
         S = len(entityList)
@@ -104,7 +119,8 @@ class DataSet(object):
 
         tagCount = float(len(
             self.source[self.source['Tag'].str.contains(label)].index))
-
+        if tagCount == 0:
+            return 0.
         return emissionCount / tagCount
 
 

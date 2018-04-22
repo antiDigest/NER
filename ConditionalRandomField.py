@@ -4,13 +4,16 @@ import pandas as pd
 import numpy as np
 from DataSet import DataSet
 from utils import *
+from features import *
+import time
+import argparse
 
 
 class ConditionalRandomField(object):
 
     class Chain(object):
 
-        def __init__(self, sentence, tags, pos, pi, states, dataset):
+        def __init__(self, sentence, tags, pos, pi, states, dataset, verbose=False):
             assert type(sentence) == list, "Sentence should be a list."
             assert type(tags) == list, "Tags should be a list."
             assert type(pos) == list, "POS should be a list."
@@ -22,6 +25,11 @@ class ConditionalRandomField(object):
             self.pi = pi
             self.states = len(entities.keys())
             self.dataset = dataset
+            self.verbose = verbose
+            self.features = []
+
+            if self.verbose:
+                print(self.__str__())
 
         def __str__(self):
             return " ".join(self.sentence) + ": " + " ".join(self.labels)
@@ -52,74 +60,124 @@ class ConditionalRandomField(object):
             return np.exp(num) / Z
             # return P / sum(P)
 
-        def featureMap(self, word):
-            return getFeatureMap(self.sentence, self.pos, self.labels, word, self.dataset)
+        def featureMap(self, word, label):
+            # wordindex = self.sentence.index(word)
+            # if label == self.labels[wordindex] and self.features == []:
+            #     features = getFeatureMap(self.sentence, self.pos,
+            #                              self.labels, label, word, self.dataset)
+            #     self.features = features
+            #     return self.features
+            # elif label == self.labels[wordindex] and self.features != []:
+            #     print(self.features)
+            #     return self.features
+
+            features = getFeatureMap(self.sentence, self.pos,
+                                     self.labels, label, word, self.dataset)
+
+            # if self.verbose:
+            #     print("FEATURES: " + features)
+            return features
 
         def forward(self, weights):
             alpha = np.zeros((self.T, self.states))
             alpha[0, :] = self.pi
 
             for t in xrange(1, self.T):
-                f = weights * self.featureMap(self.sentence[t - 1])
+                # print("[VECTOR]: ALPHA[t-1] = " + str(alpha[t - 1, :]))
                 for state in xrange(0, self.states):
+                    f = weights * \
+                        self.featureMap(
+                            self.sentence[t - 1], entities.keys()[state])
+                    # print("[FEATURE]: " + str(f))
+                    # In log-sum-exp space instead of sum-exp state
                     alpha[t, state] = sum(alpha[t - 1, :] * sum(f))
+                    # print("[VECTOR]: ALPHA = " + str(alpha[t, :]))
 
-            print("FORWARD: " + str(sum(alpha[-1, :])))
-            return sum(alpha[-1, :])
+                print("[VECTOR]: ALPHA = " + str(alpha[t, :]))
 
-    def __init__(self, dataset):
+                # Normalised Probability
+                # if t != self.T:
+                #     alpha[t, :] = alpha[t, :] / sum(alpha[t, :])
+
+            return np.log(sum(alpha[-1, :]))
+
+    def __init__(self, dataset, verbose=False):
         self.data = dataset
         self.M = dataset.rows()
         self.featureSize = NUMFEATURES
         self.weights = np.ones(self.featureSize)
         self.chains = []
+        self.verbose = verbose
 
     def getChains(self):
+        if self.verbose:
+            print("[INFO]: Initialising all the CRF Chains...")
+
+        startProb = self.data.startProbability()
         for row in self.data.iterate():
-            chain = self.Chain(row[0], row[1], row[2], self.data.startProbability(
-            ), self.featureSize, self.data)
+            chain = self.Chain(row[0], row[1], row[2],
+                               startProb, self.featureSize, self.data)
             self.chains.append(chain)
 
         return self.chains
 
     def train(self, alpha=0.1):
 
+        start = "[INFO]:[TRAINING]:"
+
+        if self.verbose:
+            print(start + " Training CRF Model...")
+            print(start + " Alpha=" + str(alpha))
+
         self.getChains()
+
+        if self.verbose:
+            print(start + " Number of training instances=" + str(len(self.chains)))
 
         featureCount = np.zeros(self.featureSize)
         for chain in self.chains:
             features = np.zeros(self.featureSize)
             for t in xrange(0, chain.T):
-                features = features + chain.featureMap(chain.sentence[t])
+                features = features + \
+                    chain.featureMap(
+                        chain.sentence[t - 1], chain.labels[t - 1])
             featureCount += features
+
+            if self.verbose:
+                chainindex = self.chains.index(chain)
+                if chainindex % 1000 == 0:
+                    print(start + str(chainindex) + "/" +
+                          str(len(self.chains)) + "[VECTOR]: Empirical Probability")
+                    print(start + str(featureCount))
+
             # break
 
         empirical = featureCount
-        print(empirical)
+        if self.verbose:
+            print(start + "[VECTOR]: Empirical Probability")
+            print(start + str(empirical))
 
         # self.weights = empirical
 
         its = 0
         chainProb = 0
-        while sum(empirical - chainProb) > 0.00001:
-            # for its in xrange(0, 1000):
+        # while sum(empirical - chainProb) > 0.00001:
+        for its in xrange(0, 1000):
 
             chainProb = 0
             for chain in self.chains:
                 p = chain.forward(self.weights)
-
-                # features = np.zeros(self.featureSize)
-                # for t in xrange(0, chain.T):
-                #     features = features + chain.featureMap(chain.sentence[t])
-
-                # featureCount += features
+                if self.verbose:
+                    print(start + " PROBABILITY: " + str(p))
                 chainProb = chainProb + p
-                # print (chainProb)
 
-            self.weights = self.weights + \
-                (alpha * (sum(empirical) - chainProb)) - \
-                self.regularize(self.weights)
-            print(self.weights)
+            self.weights = np.log(np.exp(self.weights) +
+                                  (alpha * (sum(empirical) - chainProb) / np.exp(self.weights)))  # - \
+            # np.log(self.regularize(self.weights))
+
+            if self.verbose:
+                print(start + "[VECTOR]: WEIGHTS")
+                print(start + str(self.weights))
 
             alpha = 2 / (2 + its)
             # its += 1
@@ -127,7 +185,7 @@ class ConditionalRandomField(object):
                 break
 
     def regularize(self, weights):
-        print(sum(np.square(weights)) / (2 * self.featureSize))
+        # print(sum(np.square(weights)) / (2 * self.featureSize))
         return sum(np.square(weights)) / (2 * self.featureSize)
 
     # def viterbi(self, chain):
@@ -176,11 +234,26 @@ class ConditionalRandomField(object):
     #     return sequence
 
 if __name__ == '__main__':
-    d = DataSet('demo/sample.csv')
-    crf = ConditionalRandomField(d)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-v", "--verbose", help="increase output verbosity",
+                        action="store_true")
+    args = parser.parse_args()
+    if args.verbose:
+        print("[INFO] Giving verbose output")
+
+    start = time.time()
+    d = DataSet(FILE='demo/sample.csv', verbose=args.verbose)
+    print("[INFO]: Time Taken = " + str(time.time() - start))
+    start = time.time()
+    crf = ConditionalRandomField(d, verbose=args.verbose)
+    print("[INFO]: Time Taken = " + str(time.time() - start))
     # crf.train()
     # chains = crf.getChains()
+    start = time.time()
     crf.train()
+    print("[INFO]: Time Taken = " + str(time.time() - start))
+
     # for chain in chains:
     #     print(" ".join(chain.sentence))
     #     print(chain.forward(crf.weights))
