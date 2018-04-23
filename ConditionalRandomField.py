@@ -29,7 +29,7 @@ class ConditionalRandomField(object):
             self.features = []
 
             if self.verbose:
-                print(self.__str__())
+                logger(self.__str__())
 
         def __str__(self):
             return " ".join(self.sentence) + ": " + " ".join(self.labels)
@@ -68,14 +68,14 @@ class ConditionalRandomField(object):
             #     self.features = features
             #     return self.features
             # elif label == self.labels[wordindex] and self.features != []:
-            #     print(self.features)
+            #     logger(self.features)
             #     return self.features
 
             features = getFeatureMap(self.sentence, self.pos,
                                      self.labels, label, word, self.dataset)
 
             # if self.verbose:
-            #     print("FEATURES: " + features)
+            #     logger("FEATURES: " + features)
             return features
 
         def forward(self, weights):
@@ -83,17 +83,17 @@ class ConditionalRandomField(object):
             alpha[0, :] = self.pi
 
             for t in xrange(1, self.T):
-                # print("[VECTOR]: ALPHA[t-1] = " + str(alpha[t - 1, :]))
+                # logger("[VECTOR]: ALPHA[t-1] = " + str(alpha[t - 1, :]))
                 for state in xrange(0, self.states):
                     f = weights * \
                         self.featureMap(
                             self.sentence[t - 1], entities.keys()[state])
-                    # print("[FEATURE]: " + str(f))
+                    # logger("[FEATURE]: " + str(f))
                     # In log-sum-exp space instead of sum-exp state
                     alpha[t, state] = sum(alpha[t - 1, :] * sum(f))
-                    # print("[VECTOR]: ALPHA = " + str(alpha[t, :]))
+                    # logger("[VECTOR]: ALPHA = " + str(alpha[t, :]))
 
-                print("[VECTOR]: ALPHA = " + str(alpha[t, :]))
+                logger("[VECTOR]: ALPHA = " + str(alpha[t, :]))
 
                 # Normalised Probability
                 # if t != self.T:
@@ -111,7 +111,7 @@ class ConditionalRandomField(object):
 
     def getChains(self):
         if self.verbose:
-            print("[INFO]: Initialising all the CRF Chains...")
+            logger("[INFO]: Initialising all the CRF Chains...")
 
         startProb = self.data.startProbability()
         for row in self.data.iterate():
@@ -126,49 +126,80 @@ class ConditionalRandomField(object):
         start = "[INFO]:[TRAINING]:"
 
         if self.verbose:
-            print(start + " Training CRF Model...")
-            print(start + " Alpha=" + str(alpha))
+            logger(start + " Training CRF Model...")
+            logger(start + " Alpha=" + str(alpha))
 
         self.getChains()
 
         if self.verbose:
-            print(start + " Number of training instances=" + str(len(self.chains)))
+            logger(start + " Number of training instances=" +
+                   str(len(self.chains)))
 
+        global featureCount
         featureCount = np.zeros(self.featureSize)
-        for chain in self.chains:
+
+        def extract(chain):
+
+            # global featureCount
             features = np.zeros(self.featureSize)
             for t in xrange(0, chain.T):
                 features = features + \
                     chain.featureMap(
                         chain.sentence[t - 1], chain.labels[t - 1])
-            featureCount += features
+            # featureCount += features
 
-            if self.verbose:
-                chainindex = self.chains.index(chain)
-                if chainindex % 1000 == 0:
-                    print(start + str(chainindex) + "/" +
-                          str(len(self.chains)) + "[VECTOR]: Empirical Probability")
-                    print(start + str(featureCount))
+            # if self.verbose:
+            #     chainindex = self.chains.index(chain)
+            #     if chainindex % 10 == 0:
+            #         logger(start + str(chainindex) + "/" +
+            #                str(len(self.chains)) + "[VECTOR]: Empirical Probability")
+            # logger(start + str(featureCount))
+            return features
 
-            # break
+        def reduceF(features):
+            return np.sum(features)
+
+        # Trying to make it run faster
+
+        # from multiprocessing import Process
+        # import os
+        # processes = []
+        # for i in xrange(0, 4):
+        #     chains = self.chains[(i * 1):((len(self.chains) / 4) * (i + 1))]
+        #     p = Process(target=extract, args=(chains,))
+        #     p.start()
+        #     processes.append(p)
+
+        # for i in xrange(0, 4):
+        #     processes[i].join()
+
+        from pathos.multiprocessing import ProcessingPool as Pool
+
+        pool = Pool(3)
+        data = pool.map(extract, self.chains)
+        featureCount = pool.map(reduceF, data)
+        pool.close()
+        pool.join()
+
+        # break
 
         empirical = featureCount
         if self.verbose:
-            print(start + "[VECTOR]: Empirical Probability")
-            print(start + str(empirical))
+            logger(start + "[VECTOR]: Empirical Probability")
+            logger(start + str(empirical))
 
         # self.weights = empirical
 
         its = 0
         chainProb = 0
         # while sum(empirical - chainProb) > 0.00001:
-        for its in xrange(0, 1000):
+        for its in xrange(0, 5):
 
             chainProb = 0
             for chain in self.chains:
                 p = chain.forward(self.weights)
                 if self.verbose:
-                    print(start + " PROBABILITY: " + str(p))
+                    logger(start + " PROBABILITY: " + str(p))
                 chainProb = chainProb + p
 
             self.weights = np.log(np.exp(self.weights) +
@@ -176,8 +207,8 @@ class ConditionalRandomField(object):
             # np.log(self.regularize(self.weights))
 
             if self.verbose:
-                print(start + "[VECTOR]: WEIGHTS")
-                print(start + str(self.weights))
+                logger(start + "[VECTOR]: WEIGHTS")
+                logger(start + str(self.weights))
 
             alpha = 2 / (2 + its)
             # its += 1
@@ -185,7 +216,7 @@ class ConditionalRandomField(object):
                 break
 
     def regularize(self, weights):
-        # print(sum(np.square(weights)) / (2 * self.featureSize))
+        # logger(sum(np.square(weights)) / (2 * self.featureSize))
         return sum(np.square(weights)) / (2 * self.featureSize)
 
     # def viterbi(self, chain):
@@ -217,7 +248,7 @@ class ConditionalRandomField(object):
 
     #             viterbi[t][state] = {'prob': maxProb, 'prev': prevState}
 
-    #         # print viterbi[t]
+    #         # logger viterbi[t]
 
     #     max_elem, max_prob, max_prev = max([(key, value["prob"], value['prev'])
     # for key, value in viterbi[-1].items()], key=lambda i: i[1])
@@ -240,7 +271,7 @@ if __name__ == '__main__':
                         action="store_true")
     args = parser.parse_args()
     if args.verbose:
-        print("[INFO] Giving verbose output")
+        logger("[INFO] Giving verbose output")
 
     start = time.time()
     d = DataSet(FILE='demo/sample.csv', verbose=args.verbose)

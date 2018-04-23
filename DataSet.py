@@ -35,13 +35,13 @@ class DataSet(object):
 
     def club(self):
         if self.verbose:
-            print(
+            logger(
                 "[INFO]: Handling missing values: filling inplace copying from top, most recent")
         self.data.fillna(method='ffill', inplace=True)
 
     def preprocess(self):
         if self.verbose:
-            print("[INFO]: Grouping by sentence number")
+            logger("[INFO]: Grouping by sentence number")
         self.data = self.data.groupby("Sentence #").agg({'Word': lambda x: ";".join(x),
                                                          'Tag': lambda x: ";".join(x),
                                                          'POS': lambda x: ";".join(x)})[['Word', 'Tag', 'POS']]
@@ -56,12 +56,17 @@ class DataSet(object):
 
     def startProbability(self):
         if self.verbose:
-            print("[INFO]: Calculating initial starting probabilities from the dataset")
+            logger(
+                "[INFO]: Calculating initial starting probabilities from the dataset")
 
         self.pi = np.zeros(len(entities.keys()))
-        for row in self.iterate():
-            self.pi[getEntity(row[1][0])] += 1
-        return (self.pi / sum(self.pi))
+        entityList = sorted(entities.keys())
+        for tagIndex, tag in enumerate(entityList):
+            num = self.source[self.source['Tag'].str.contains(tag)]
+            self.pi[tagIndex] = len(num.index)
+
+        self.pi = (self.pi / sum(self.pi))
+        return self.pi
 
     def to_records(self):
         return self.data.to_records()
@@ -71,17 +76,17 @@ class DataSet(object):
 
     def unigrams(self):
         if self.verbose:
-            print("[INFO]: Extracting unigrams...")
+            logger("[INFO]: Extracting unigrams...")
         self.unigrams = list(self.source['Word'].unique())
 
     def unipos(self):
         if self.verbose:
-            print("[INFO]: Extracting uni POS tags...")
+            logger("[INFO]: Extracting uni POS tags...")
         self.unipos = list(self.source['POS'].unique())
 
     def transition(self):
         if self.verbose:
-            print("[INFO]: Pre-Calculating label transition probabilities...")
+            logger("[INFO]: Pre-Calculating label transition probabilities...")
 
         entityList = sorted(entities.keys())
         S = len(entityList)
@@ -131,15 +136,18 @@ if __name__ == '__main__':
     print(time.time() - start)
 
     print("CALCULATING PROBABILITIES")
-    # print(d.unigrams)
+    # logger(d.unigrams)
     # start = time.time()
     # transProb = d.transition()
-    # print(time.time() - start)
+    # logger(time.time() - start)
 
+    d.startProbability()
     print(d.transProb)
+
+    print(d.pi)
 
     # start = time.time()
     # emission = d.emission('O', 'the')
-    # print(time.time() - start)
+    # logger(time.time() - start)
 
-    # print(emission)
+    # logger(emission)

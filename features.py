@@ -89,7 +89,7 @@ def extractFeatures(sentence, pos, labels, label, wordindex, dataset):
         # 'isCounty1': (word.isupper() or word[0].isupper()) and "county" in sentence[wordindex + 1].lower(),
         # 'isCity2': (word.isupper() or word[0].isupper()) and "city of" in sentence[wordindex - 1].lower(),
         # 'isCounty2': (word.isupper() or word[0].isupper()) and "county of" in sentence[wordindex - 1].lower(),
-        'prev_state_prob': 47959 / 1048576,
+        'prev_state_prob': 47959. / 1048576.,
         'obs_prob': 0
     }
 
@@ -106,6 +106,7 @@ def extractFeatures(sentence, pos, labels, label, wordindex, dataset):
     if obs_prob != -1:
         features['obs_prob'] = obs_prob
 
+    logging.info(str(features))
     return features
 
 
