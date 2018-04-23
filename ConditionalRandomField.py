@@ -150,7 +150,7 @@ class ConditionalRandomField(object):
 
             # if self.verbose:
             #     chainindex = self.chains.index(chain)
-            #     if chainindex % 10 == 0:
+            #     if chainindex % 100 == 0:
             #         logger(start + str(chainindex) + "/" +
             #                str(len(self.chains)) + "[VECTOR]: Empirical Probability")
             # logger(start + str(featureCount))
@@ -269,12 +269,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", help="increase output verbosity",
                         action="store_true")
+    parser.add_argument("-d", "--demo", help="increase output verbosity",
+                        action="store_true")
     args = parser.parse_args()
     if args.verbose:
         logger("[INFO] Giving verbose output")
 
     start = time.time()
-    d = DataSet(verbose=args.verbose)
+    if args.demo:
+        d = DataSet(FILE='demo/sample.csv', verbose=args.verbose)
+    else:
+        d = DataSet(verbose=args.verbose)
     print("[INFO]: Time Taken = " + str(time.time() - start))
     start = time.time()
     crf = ConditionalRandomField(d, verbose=args.verbose)

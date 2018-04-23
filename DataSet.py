@@ -21,7 +21,9 @@ class DataSet(object):
     """
 
     def __init__(self, FILE="data/kaggle/ner_dataset.csv", verbose=False):
-        self.source = self.data = pd.read_csv(
+        self.source = pd.read_csv(
+            "data/kaggle/ner_dataset.csv", header=0, dtype={'Sentence #': str})
+        self.data = pd.read_csv(
             FILE, header=0, dtype={'Sentence #': str})
         self.verbose = verbose
         self.sentences = []
@@ -91,9 +93,11 @@ class DataSet(object):
         entityList = sorted(entities.keys())
         S = len(entityList)
         transProb = np.zeros((S, S))
+        self.tagCount = np.zeros(S)
 
         for tagIndex, tag in enumerate(entityList):
             num = self.source[self.source['Tag'].str.contains(tag)]
+            self.tagCount[tagIndex] = len(num.index)
 
             indexes = num.index.values
             indexes = [index + 1 for index in indexes if index < self.M - 1]
@@ -112,7 +116,12 @@ class DataSet(object):
 
         self.transProb = transProb
 
+        # self.emission = {}
+        # for word in self.unigrams:
+        #     self.emission[word] = self.source[self.source['Word'] == word]
+
     def emission(self, label, word):
+        count_tag = self.tagCount[label]
 
         label = entities.keys()[entities.values().index(label)]
 
@@ -122,17 +131,15 @@ class DataSet(object):
         emissionCount = float(len(
             emission[emission['Tag'].str.contains(label)].index))
 
-        tagCount = float(len(
-            self.source[self.source['Tag'].str.contains(label)].index))
-        if tagCount == 0:
+        if count_tag == 0:
             return 0.
-        return emissionCount / tagCount
+        return emissionCount / count_tag
 
 
 if __name__ == '__main__':
     print("INIT")
     start = time.time()
-    d = DataSet()
+    d = DataSet('demo/sample.csv')
     print(time.time() - start)
 
     print("CALCULATING PROBABILITIES")
@@ -146,8 +153,8 @@ if __name__ == '__main__':
 
     print(d.pi)
 
-    # start = time.time()
-    # emission = d.emission('O', 'the')
-    # logger(time.time() - start)
+    start = time.time()
+    print(d.emission(2, 'Superdome'))
+    print(time.time() - start)
 
     # logger(emission)
