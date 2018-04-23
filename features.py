@@ -50,8 +50,12 @@ def extractFeatures(sentence, pos, labels, label, wordindex, dataset):
         prev_label = -1
 
     try:
-        next_word = dataset.unigrams.index(sentence[wordindex + 1])
-        next_pos = dataset.unipos.index(pos[wordindex + 1])
+        if next_word in dataset.unigrams:
+            next_word = dataset.unigrams.index(sentence[wordindex + 1])
+            next_pos = dataset.unipos.index(pos[wordindex + 1])
+        else:
+            next_word = -2
+            next_pos = -2
     except ValueError and IndexError:
         next_word = -2
         next_pos = -2
