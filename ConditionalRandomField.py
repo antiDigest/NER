@@ -274,7 +274,7 @@ if __name__ == '__main__':
         logger("[INFO] Giving verbose output")
 
     start = time.time()
-    d = DataSet(FILE='demo/sample.csv', verbose=args.verbose)
+    d = DataSet(verbose=args.verbose)
     print("[INFO]: Time Taken = " + str(time.time() - start))
     start = time.time()
     crf = ConditionalRandomField(d, verbose=args.verbose)
