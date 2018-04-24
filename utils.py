@@ -6,8 +6,8 @@ from __future__ import print_function
 import numpy as np
 from nltk.corpus import wordnet as wn
 import logging
-logging.basicConfig(filename='out1.log', format='%(asctime)s %(message)s')
 logging.getLogger().setLevel(logging.INFO)
+logging.basicConfig(filename='out1.log', format='%(asctime)s %(message)s')
 
 # Named Entities:
 #   geo = Geographical Entity

@@ -9,7 +9,7 @@ from utils import *
 
 
 nouns = {x.name().split('.', 1)[0] for x in wn.all_synsets('n')}
-NUMFEATURES = 2
+NUMFEATURES = 4
 
 
 def getFeatureMap(sentence, pos, labels, label, word, dataset):
@@ -66,11 +66,11 @@ def extractFeatures(sentence, pos, labels, label, wordindex, dataset):
     features = {
         # 'isupper': word.isupper(),
         # 'islower': word.islower(),
-        # 'istitle': word.istitle(),
+        'istitle': word.istitle(),
         # 'isdigit': word.isdigit(),
         # 'word': dataset.unigrams.index(word),
         # 'next_word': next_word,
-        # 'prev_word': prev_word,
+        'prev_word': prev_word,
         # 'pos': dataset.unipos.index(word_pos),
         # 'pos_next': next_pos,
         # 'pos_prev': prev_pos,
@@ -106,7 +106,7 @@ def extractFeatures(sentence, pos, labels, label, wordindex, dataset):
     if obs_prob != -1:
         features['obs_prob'] = obs_prob
 
-    logging.info(str(features))
+    # logging.info(str(features))
     return features
 
 
