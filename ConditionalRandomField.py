@@ -61,19 +61,10 @@ class ConditionalRandomField(object):
             return np.exp(num) / Z
             # return P / sum(P)
 
-        def featureMap(self, word, label):
-            # wordindex = self.sentence.index(word)
-            # if label == self.labels[wordindex] and self.features == []:
-            #     features = getFeatureMap(self.sentence, self.pos,
-            #                              self.labels, label, word, self.dataset)
-            #     self.features = features
-            #     return self.features
-            # elif label == self.labels[wordindex] and self.features != []:
-            #     logger(self.features)
-            #     return self.features
+        def featureMap(self, word, label, prev_label):
 
             features = getFeatureMap(self.sentence, self.pos,
-                                     self.labels, label, word, self.dataset)
+                                     self.labels, label, prev_label, word, self.dataset)
 
             # if self.verbose:
             #     logger("FEATURES: " + features)
@@ -85,24 +76,31 @@ class ConditionalRandomField(object):
 
             for t in xrange(1, self.T):
                 # logger("[VECTOR]: ALPHA[t-1] = " + str(alpha[t - 1, :]))
+                alpha[t - 1, :] = alpha[t - 1, :] / \
+                    np.sum(alpha[t - 1, :])  # NORMALIZE
                 for state in xrange(0, self.states):
-                    f = np.exp(weights *
-                               self.featureMap(
-                                   self.sentence[t - 1], entities.keys()[state]))
-                    maxf = max(f)
-                    f = f / maxf
-                    # logger("[FEATURE]: " + str(f))
+                    # next_alpha = np.zeros(self.states)
+                    # for prev_state in xrange(0, self.states):
+                    F = [self.featureMap(self.sentence[t - 1],
+                                         entities.keys()[state],
+                                         entities.keys()[prev_state])
+                         for prev_state in xrange(0, self.states)]
+
+                    # print("[FEATURE]: " + str(F))
+                    f = np.array([np.sum(weights * feature) for feature in F])
+                    # logger("[FEATURE NORM]: " + str(f))
+                    maxf = np.max(f)
+                    # logger("[MAXIMUM]: " + str(maxf))
+                    f = np.exp(f / maxf)
+                    # logger("[FEATURE NORM]: " + str(f))
                     # In log-sum-exp space instead of sum-exp state
-                    alpha[t, state] = sum(
-                        alpha[t - 1, :] * (maxf + np.log(sum(f))))
-                    # logger("[VECTOR]: ALPHA = " + str(alpha[t, :]))
+                    # logger("[ALPHA]: " + str(alpha[t - 1, :]))
+                    next_alpha = alpha[t - 1, :] * np.log(f)
+                    # max_alpha = max(next_alpha)
+                    # alpha[t, state] = np.log(sum(next_alpha / max_alpha))
+                    alpha[t, state] = np.sum(next_alpha)
 
-                # logger("[VECTOR]: ALPHA = " + str(alpha[t, :]))
-
-                # Normalised Probability
-                # if t != self.T:
-                #     alpha[t, :] = alpha[t, :] / sum(alpha[t, :])
-            logger("[VECTOR]: ALPHA = " + str(alpha[self.T, :]))
+            logger("[VECTOR]: ALPHA = " + str(alpha[self.T - 1, :]))
 
             return sum(alpha[-1, :])
 
@@ -110,7 +108,7 @@ class ConditionalRandomField(object):
         self.data = dataset
         self.M = dataset.rows()
         self.featureSize = NUMFEATURES
-        self.weights = np.ones(self.featureSize)
+        self.weights = np.ones(self.featureSize) * 0.01
         self.chains = []
         self.verbose = verbose
 
@@ -123,6 +121,8 @@ class ConditionalRandomField(object):
             chain = self.Chain(row[0], row[1], row[2],
                                startProb, self.featureSize, self.data)
             self.chains.append(chain)
+
+        # print(self.chains)
 
         return self.chains
 
@@ -144,146 +144,129 @@ class ConditionalRandomField(object):
         featureCount = np.zeros(self.featureSize)
 
         def extract(chain):
-
-            # global featureCount
             features = np.zeros(self.featureSize)
             for t in xrange(0, chain.T):
-                features = np.add(features, chain.featureMap(
-                    chain.sentence[t - 1], chain.labels[t - 1]))
-            # featureCount += features
+                if t == 0:
+                    features = chain.featureMap(
+                        chain.sentence[t], chain.labels[t], -1)
+                else:
+                    features = features + \
+                        chain.featureMap(
+                            chain.sentence[t], chain.labels[t], chain.labels[t - 1])
 
-            logger("[FEATURES]: " + str(features))
-
-            # if self.verbose:
-            #     chainindex = self.chains.index(chain)
-            #     if chainindex % 100 == 0:
-            #         logger(start + str(chainindex) + "/" +
-            #                str(len(self.chains)) + "[VECTOR]: Empirical Probability")
-            # logger(start + str(featureCount))
+            # logger("[FEATURES]: " + str(features), print_it=False)
             return features
 
         def partition(mapped_values):
-            """Organize the mapped values by their key.
-            Returns an unsorted sequence of tuples with a key
-            and a sequence of values.
-            """
             for index, value in enumerate(mapped_values):
                 if index == 0:
                     sumValue = np.array(value)
                 else:
-                    sumValue = sumValue + np.array(value)
+                    sumValue = np.add(sumValue, np.array(value))
             return sumValue
 
         # Trying to make it run faster
 
-        # from multiprocessing import Process
-        # import os
-        # processes = []
-        # for i in xrange(0, 4):
-        #     chains = self.chains[(i * 1):((len(self.chains) / 4) * (i + 1))]
-        #     p = Process(target=extract, args=(chains,))
-        #     p.start()
-        #     processes.append(p)
-
-        # for i in xrange(0, 4):
-        #     processes[i].join()
-
         from pathos.multiprocessing import ProcessingPool as Pool
 
-        pool = Pool(5)
+        pool = Pool(10)
         data = pool.map(extract, self.chains)
-        featureCount = partition(itertools.chain(*data))
-        pool.close()
-        pool.join()
+        featureCount = partition(data)
 
-        # break
-
-        empirical = np.sum(featureCount)
+        empirical = featureCount
+        # empirical = 1.
         if self.verbose:
             logger(start + "[VECTOR]: Empirical Probability")
             logger(start + str(empirical))
 
-        # self.weights = empirical
-
         its = 0
         chainProb = 0
-        while sum(empirical) - sum(chainProb) > 0.00001:
+        pool1 = Pool(10)
+        while np.sum(empirical) - chainProb > 0.00001:
 
             chainProb = 0
 
             def chainExtract(chain):
                 p = chain.forward(self.weights)
-                # if self.verbose:
-                #     logger(start + " PROBABILITY: " + str(p))
+                if self.verbose:
+                    logger(start + " PROBABILITY: " + str(p))
                 return p
 
-            pool = Pool(5)
-            data = pool.map(chainExtract, self.chains)
-            chainProb = partition(itertools.chain(*data))
-            pool.close()
-            pool.join()
+            data = pool1.map(chainExtract, self.chains)
+            chainProb = partition(data)
+            if self.verbose:
+                logger(start + " CHAIN PROBABILITY: " + str(chainProb))
+                logger(start + " EMPERICAL PROBABILITY: " +
+                       str(np.sum(empirical)))
+                logger(start + "[VECTOR]: WEIGHTS: " + str(self.weights))
+
+            J = empirical - chainProb * empirical
+            # % Gradient
+            J = J / np.exp(self.weights)
 
             self.weights = np.log(np.exp(self.weights) +
-                                  (alpha * (empirical - chainProb)))   - \
-                np.log(self.regularize(self.weights))
+                                  (alpha * J)) - self.regularize(self.weights)
 
             if self.verbose:
-                logger(start + "[VECTOR]: WEIGHTS")
+                logger(start + "[VECTOR]: UPDATED WEIGHTS")
                 logger(start + str(self.weights))
 
             alpha = 2 / (2 + its)
-            # its += 1
-            if its == 4:
-                break
+            its += 1
+
+        pool1.close()
+        pool1.join()
 
     def regularize(self, weights):
-        # logger(sum(np.square(weights)) / (2 * self.featureSize))
-        return (0.01 * sum(np.square(weights)) / (2))
+        logger("L2 NORM: " + str(sum(np.square(weights)) * 0.01))
+        return (0.01 * sum(np.square(weights)))
 
-    # def viterbi(self, chain):
-    #     """
-    #         The State sequence generator, takes as input the probability of next state given the first
-    #         and the probability of having one state given an observation and maximises the sequence that
-    #         can be made.
-    #         This function generates the viterbi sequence for a set of observations.
-    #     """
+    def viterbi(self, chain):
+        """
+            The State sequence generator, takes as input the probability of next state given the first
+            and the probability of having one state given an observation and maximises the sequence that
+            can be made.
+            This function generates the viterbi sequence for a set of observations.
+        """
 
-    #     viterbi = [{}]
+        viterbi = [{}]
 
-    #     for state in xrange(0, self.states):
-    #         prob = np.exp(sum(weights * self.featureMap(t - 1))
-    #                       ) * self.pi[state]
-    #         viterbi[0][state] = {'prob': prob, 'prev': None}
+        for state in xrange(0, self.states):
+            prob = np.exp(sum(weights * self.featureMap(t - 1))
+                          ) * self.pi[state]
+            viterbi[0][state] = {'prob': prob, 'prev': None}
 
-    #     for t in range(1, self.T):
-    #         viterbi.append({})
-    #         for state in self.states:
-    #             # max(Prev_prob * trans_prob, prev)
-    #             maxProb, prevState = max([(np.exp(sum(weights * self.featureMap(t - 1))) *
-    #                                        viterbi[t - 1][prev]['prob'], prev)
-    #                                       for prev in states], key=lambda i: i[0])
-    #             # max(prev_prob * trans_prob, prev_prob) * emission_prob
-    #             # emission_prob: probability of observation given the label
-    #             maxProb = maxProb * \
-    #                 np.exp(sum(weights * self.featureMap(t - 1)))
+        for t in range(1, self.T):
+            viterbi.append({})
+            for state in self.states:
+                # max(Prev_prob * trans_prob, prev)
+                f = sum(
+                    weights * chain.featureMap(chain.sentence[t - 1], chain.labels[t - 1]))
+                maxProb, prevState = max([(np.exp(f) * viterbi[t - 1][prev]['prob'], prev)
+                                          for prev in states], key=lambda i: i[0])
+                # max(prev_prob * trans_prob, prev_prob) * emission_prob
+                # emission_prob: probability of observation given the label
+                # maxProb=maxProb * \
+                #     np.exp(sum(weights * self.featureMap(t - 1)))
 
-    #             viterbi[t][state] = {'prob': maxProb, 'prev': prevState}
+                viterbi[t][state] = {'prob': maxProb, 'prev': prevState}
 
-    #         # logger viterbi[t]
+            # logger viterbi[t]
 
-    #     max_elem, max_prob, max_prev = max([(key, value["prob"], value['prev'])
-    # for key, value in viterbi[-1].items()], key=lambda i: i[1])
+        max_elem, max_prob, max_prev = max([(key, value["prob"], value[
+            'prev']) for key, value in viterbi[-1].items()],
+            key=lambda i: i[1])
 
-    #     sequence = []
-    #     sequence.insert(0, max_elem)
+        sequence = []
+        sequence.insert(0, max_elem)
 
-    #     k = len(viterbi) - 2
-    #     while max_prev != None:
-    #         sequence.insert(0, max_prev)
-    #         max_prev = viterbi[k][max_prev]['prev']
-    #         k -= 1
+        k = len(viterbi) - 2
+        while max_prev != None:
+            sequence.insert(0, max_prev)
+            max_prev = viterbi[k][max_prev]['prev']
+            k -= 1
 
-    #     return sequence
+        return sequence
 
 if __name__ == '__main__':
 
@@ -311,8 +294,7 @@ if __name__ == '__main__':
     crf.train()
     print("[INFO]: Time Taken = " + str(time.time() - start))
 
-    # for chain in chains:
-    #     print(" ".join(chain.sentence))
-    #     print(chain.forward(crf.weights))
-    #     # print crf.viterbi(chain)
-    #     break
+    for chain in crf.chains:
+        print(" ".join(chain.sentence))
+        print(crf.viterbi(chain))
+        break

@@ -48,6 +48,8 @@ class DataSet(object):
                                                          'Tag': lambda x: ";".join(x),
                                                          'POS': lambda x: ";".join(x)})[['Word', 'Tag', 'POS']]
 
+        # logger(self.data)
+
     def add(self, sentence, label):
         self.sentences.append(sentence)
         self.labels.append(label)

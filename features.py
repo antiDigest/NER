@@ -9,13 +9,13 @@ from utils import *
 
 
 nouns = {x.name().split('.', 1)[0] for x in wn.all_synsets('n')}
-NUMFEATURES = 4
+NUMFEATURES = 2
 
 
-def getFeatureMap(sentence, pos, labels, label, word, dataset):
+def getFeatureMap(sentence, pos, labels, label, prev_label, word, dataset):
     wordindex = sentence.index(word)
     features = extractFeatures(
-        sentence, pos, labels, label, wordindex, dataset)
+        sentence, pos, labels, label, prev_label, wordindex, dataset)
 
     # print("[features]: [features]: " + str(features))
 
@@ -31,19 +31,23 @@ def getFeatureMap(sentence, pos, labels, label, word, dataset):
     return featureMap
 
 
-def extractFeatures(sentence, pos, labels, label, wordindex, dataset):
+def extractFeatures(sentence, pos, labels, label, prev_label, wordindex, dataset):
     # TODO: how to handle non-binary features
     word = sentence[wordindex]
     word_pos = pos[wordindex]
     word_label = getEntity(label)
+
+    if prev_label != -1:
+        prev_label = getEntity(prev_label)
+
     try:
         prev_word = dataset.unigrams.index(sentence[wordindex - 1])
         prev_pos = dataset.unipos.index(pos[wordindex - 1])
-        prev_label = getEntity(labels[wordindex - 1])
+        # prev_label = getEntity(labels[wordindex - 1])
         if (wordindex == 0):
             prev_word = -1
             prev_pos = -1
-            prev_label = -1
+            # prev_label = -1
     except:
         prev_word = -1
         prev_pos = -1
@@ -66,11 +70,11 @@ def extractFeatures(sentence, pos, labels, label, wordindex, dataset):
     features = {
         # 'isupper': word.isupper(),
         # 'islower': word.islower(),
-        'istitle': word.istitle(),
+        # 'istitle': word.istitle(),
         # 'isdigit': word.isdigit(),
         # 'word': dataset.unigrams.index(word),
         # 'next_word': next_word,
-        'prev_word': prev_word,
+        # 'prev_word': prev_word,
         # 'pos': dataset.unipos.index(word_pos),
         # 'pos_next': next_pos,
         # 'pos_prev': prev_pos,
