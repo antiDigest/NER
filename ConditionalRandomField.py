@@ -211,7 +211,7 @@ class ConditionalRandomField(object):
 
         from pathos.multiprocessing import ProcessingPool as Pool
 
-        pool = Pool(8)
+        pool = Pool(10)
         data = pool.map(extract, self.chains)
         featureCount = partition(data)
 
@@ -223,7 +223,7 @@ class ConditionalRandomField(object):
 
         its = 0
         chainProb = 0
-        pool1 = Pool(8)
+        pool1 = Pool(10)
         # while np.sum(empirical) - chainProb > 0.00001:
 
         def trainer(weights):
