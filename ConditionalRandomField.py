@@ -8,6 +8,7 @@ from features import *
 import time
 import argparse
 import itertools
+from scipy.optimize import minimize
 
 
 class ConditionalRandomField(object):
@@ -76,8 +77,8 @@ class ConditionalRandomField(object):
 
             for t in xrange(1, self.T):
                 # logger("[VECTOR]: ALPHA[t-1] = " + str(alpha[t - 1, :]))
-                alpha[t - 1, :] = alpha[t - 1, :] / \
-                    np.sum(alpha[t - 1, :])  # NORMALIZE
+                # alpha[t - 1, :] = alpha[t - 1, :] / \
+                #     np.sum(alpha[t - 1, :])  # NORMALIZE
                 for state in xrange(0, self.states):
                     # next_alpha = np.zeros(self.states)
                     # for prev_state in xrange(0, self.states):
@@ -91,24 +92,65 @@ class ConditionalRandomField(object):
                     # logger("[FEATURE NORM]: " + str(f))
                     maxf = np.max(f)
                     # logger("[MAXIMUM]: " + str(maxf))
-                    f = np.exp(f / maxf)
+                    if maxf > 0:
+                        f = f / maxf
+                    f = np.exp(f)
                     # logger("[FEATURE NORM]: " + str(f))
                     # In log-sum-exp space instead of sum-exp state
                     # logger("[ALPHA]: " + str(alpha[t - 1, :]))
                     next_alpha = alpha[t - 1, :] * np.log(f)
-                    # max_alpha = max(next_alpha)
-                    # alpha[t, state] = np.log(sum(next_alpha / max_alpha))
+                    max_alpha = np.max(next_alpha)
+                    if max_alpha > 0:
+                        # f = f / maxf
+                        next_alpha = next_alpha / max_alpha
                     alpha[t, state] = np.sum(next_alpha)
 
             logger("[VECTOR]: ALPHA = " + str(alpha[self.T - 1, :]))
 
             return sum(alpha[-1, :])
 
+        def viterbi(self, weights):
+
+            viterbi = [{}]
+
+            for state in xrange(0, self.states):
+                prob = np.exp(sum(weights * self.featureMap(t - 1))
+                              ) * self.pi[state]
+                viterbi[0][state] = {'prob': prob, 'prev': None}
+
+            # logger viterbi[t]
+
+            for t in range(1, self.T):
+                viterbi.append({})
+                for state in xrange(0, self.states):
+                    # max(Prev_prob * trans_prob, prev)
+                    f = sum(
+                        weights * chain.featureMap(chain.sentence[t - 1], chain.labels[t - 1]))
+                    maxProb, prevState = max([(np.exp(f) * viterbi[t - 1][prev]['prob'], prev)
+                                              for prev in states], key=lambda i: i[0])
+
+                    viterbi[t][state] = {'prob': maxProb, 'prev': prevState}
+
+            max_elem, max_prob, max_prev = max([(key, value["prob"], value[
+                'prev']) for key, value in viterbi[-1].items()],
+                key=lambda i: i[1])
+
+            sequence = []
+            sequence.insert(0, max_elem)
+
+            k = len(viterbi) - 2
+            while max_prev != None:
+                sequence.insert(0, max_prev)
+                max_prev = viterbi[k][max_prev]['prev']
+                k -= 1
+
+            return sequence
+
     def __init__(self, dataset, verbose=False):
         self.data = dataset
         self.M = dataset.rows()
         self.featureSize = NUMFEATURES
-        self.weights = np.ones(self.featureSize) * 0.01
+        self.weights = np.ones(self.featureSize)
         self.chains = []
         self.verbose = verbose
 
@@ -169,7 +211,7 @@ class ConditionalRandomField(object):
 
         from pathos.multiprocessing import ProcessingPool as Pool
 
-        pool = Pool(10)
+        pool = Pool(8)
         data = pool.map(extract, self.chains)
         featureCount = partition(data)
 
@@ -181,45 +223,62 @@ class ConditionalRandomField(object):
 
         its = 0
         chainProb = 0
-        pool1 = Pool(10)
-        while np.sum(empirical) - chainProb > 0.00001:
+        pool1 = Pool(8)
+        # while np.sum(empirical) - chainProb > 0.00001:
+
+        def trainer(weights):
 
             chainProb = 0
 
             def chainExtract(chain):
-                p = chain.forward(self.weights)
-                if self.verbose:
-                    logger(start + " PROBABILITY: " + str(p))
+                # p = 0
+                # for chain in self.chains:
+                p = chain.forward(weights)
+                # if self.verbose:
+                #     logger(start + " PROBABILITY: " + str(p))
                 return p
 
             data = pool1.map(chainExtract, self.chains)
             chainProb = partition(data)
+            # chainProb = p
             if self.verbose:
                 logger(start + " CHAIN PROBABILITY: " + str(chainProb))
                 logger(start + " EMPERICAL PROBABILITY: " +
                        str(np.sum(empirical)))
-                logger(start + "[VECTOR]: WEIGHTS: " + str(self.weights))
+                logger(start + "[VECTOR]: WEIGHTS: " + str(weights))
 
-            J = empirical - chainProb * empirical
+            J = np.array(empirical) - chainProb
             # % Gradient
-            J = J / np.exp(self.weights)
+            # J = J / np.exp(weights)
 
-            self.weights = np.log(np.exp(self.weights) +
-                                  (alpha * J)) - self.regularize(self.weights)
+            # cost = alpha * J
 
-            if self.verbose:
-                logger(start + "[VECTOR]: UPDATED WEIGHTS")
-                logger(start + str(self.weights))
+            return np.sum(empirical) - chainProb, J
 
-            alpha = 2 / (2 + its)
-            its += 1
+        # value = fmin_l_bfgs_b(trainer, self.weights)
+        res = minimize(trainer, self.weights,
+                       method='L-BFGS-B', jac=True,
+                       options={'ftol': 1e-4, 'disp': True, 'maxiter': 1000})
+
+        print(res.x)
+        print(res.success)
+
+        # self.weights = np.log(np.exp(self.weights) +
+        #                       (alpha * J)) - self.regularize(self.weights)
+
+        # if self.verbose:
+        #     logger(start + "[VECTOR]: UPDATED WEIGHTS")
+        #     logger(start + str(self.weights))
+
+        # alpha = 2 / (2 + its)
+        # its += 1
 
         pool1.close()
         pool1.join()
 
     def regularize(self, weights):
         logger("L2 NORM: " + str(sum(np.square(weights)) * 0.01))
-        return (0.01 * sum(np.square(weights)))
+        return (0.3 * sum(np.square(weights)))
 
     def viterbi(self, chain):
         """
@@ -229,44 +288,7 @@ class ConditionalRandomField(object):
             This function generates the viterbi sequence for a set of observations.
         """
 
-        viterbi = [{}]
-
-        for state in xrange(0, self.states):
-            prob = np.exp(sum(weights * self.featureMap(t - 1))
-                          ) * self.pi[state]
-            viterbi[0][state] = {'prob': prob, 'prev': None}
-
-        for t in range(1, self.T):
-            viterbi.append({})
-            for state in self.states:
-                # max(Prev_prob * trans_prob, prev)
-                f = sum(
-                    weights * chain.featureMap(chain.sentence[t - 1], chain.labels[t - 1]))
-                maxProb, prevState = max([(np.exp(f) * viterbi[t - 1][prev]['prob'], prev)
-                                          for prev in states], key=lambda i: i[0])
-                # max(prev_prob * trans_prob, prev_prob) * emission_prob
-                # emission_prob: probability of observation given the label
-                # maxProb=maxProb * \
-                #     np.exp(sum(weights * self.featureMap(t - 1)))
-
-                viterbi[t][state] = {'prob': maxProb, 'prev': prevState}
-
-            # logger viterbi[t]
-
-        max_elem, max_prob, max_prev = max([(key, value["prob"], value[
-            'prev']) for key, value in viterbi[-1].items()],
-            key=lambda i: i[1])
-
-        sequence = []
-        sequence.insert(0, max_elem)
-
-        k = len(viterbi) - 2
-        while max_prev != None:
-            sequence.insert(0, max_prev)
-            max_prev = viterbi[k][max_prev]['prev']
-            k -= 1
-
-        return sequence
+        return chain.viterbi(self.weights)
 
 if __name__ == '__main__':
 

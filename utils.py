@@ -6,6 +6,8 @@ from __future__ import print_function
 import numpy as np
 from nltk.corpus import wordnet as wn
 import logging
+import os
+os.remove('output.log')
 logging.getLogger().setLevel(logging.INFO)
 logging.basicConfig(filename='output.log', format='%(asctime)s %(message)s')
 
@@ -35,3 +37,9 @@ def logger(message, print_it=True):
     logging.info(message)
     if print_it:
         print(message)
+
+
+def findIndex(target, myList):
+    for i in range(len(myList)):
+        if myList[i] == target:
+            return i

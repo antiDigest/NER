@@ -19,12 +19,7 @@ def getFeatureMap(sentence, pos, labels, label, prev_label, word, dataset):
 
     # print("[features]: [features]: " + str(features))
 
-    featureMap = np.zeros(NUMFEATURES)
-    for index, feature in enumerate(features.keys()):
-        if feature == np.nan:
-            featureMap[index] = 0.
-        else:
-            featureMap[index] = features[feature]
+    featureMap = np.array(features.values())
 
     # print(featureMap)
 
@@ -41,17 +36,18 @@ def extractFeatures(sentence, pos, labels, label, prev_label, wordindex, dataset
         prev_label = getEntity(prev_label)
 
     try:
-        prev_word = dataset.unigrams.index(sentence[wordindex - 1])
-        prev_pos = dataset.unipos.index(pos[wordindex - 1])
-        # prev_label = getEntity(labels[wordindex - 1])
+        prev_word = findIndex(
+            sentence[wordindex - 1], dataset.unigrams)
+    #     prev_pos = findIndex(pos[wordindex - 1], dataset.unipos)
+    #     # prev_label = getEntity(labels[wordindex - 1])
         if (wordindex == 0):
             prev_word = -1
-            prev_pos = -1
-            # prev_label = -1
+    #         prev_pos = -1
+    #         # prev_label = -1
     except:
         prev_word = -1
-        prev_pos = -1
-        prev_label = -1
+    #     prev_pos = -1
+    #     # prev_label = -1
 
     # try:
     #     next_word = dataset.unigrams.index(sentence[wordindex + 1])
