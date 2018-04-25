@@ -9,7 +9,7 @@ from utils import *
 
 
 nouns = {x.name().split('.', 1)[0] for x in wn.all_synsets('n')}
-NUMFEATURES = 2
+NUMFEATURES = 5
 
 
 def getFeatureMap(sentence, pos, labels, label, prev_label, word, dataset):
@@ -49,11 +49,11 @@ def extractFeatures(sentence, pos, labels, label, prev_label, wordindex, dataset
     #     prev_pos = -1
     #     # prev_label = -1
 
-    # try:
-    #     next_word = dataset.unigrams.index(sentence[wordindex + 1])
+    try:
+        next_word = findIndex(sentence[wordindex + 1], dataset.unigrams)
     #     next_pos = dataset.unipos.index(pos[wordindex + 1])
-    # except:
-    #     next_word = -2
+    except:
+        next_word = -2
     #     next_pos = -2
 
     # d = Data
@@ -66,11 +66,11 @@ def extractFeatures(sentence, pos, labels, label, prev_label, wordindex, dataset
     features = {
         # 'isupper': word.isupper(),
         # 'islower': word.islower(),
-        # 'istitle': word.istitle(),
+        'istitle': word.istitle(),
         # 'isdigit': word.isdigit(),
         # 'word': dataset.unigrams.index(word),
-        # 'next_word': next_word,
-        # 'prev_word': prev_word,
+        'next_word': next_word / len(dataset.unigrams),
+        'prev_word': prev_word / len(dataset.unigrams),
         # 'pos': dataset.unipos.index(word_pos),
         # 'pos_next': next_pos,
         # 'pos_prev': prev_pos,

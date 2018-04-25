@@ -105,7 +105,7 @@ class ConditionalRandomField(object):
                         next_alpha = next_alpha / max_alpha
                     alpha[t, state] = np.sum(next_alpha)
 
-            logger("[VECTOR]: ALPHA = " + str(alpha[self.T - 1, :]))
+            # logger("[VECTOR]: ALPHA = " + str(alpha[self.T - 1, :]))
 
             return sum(alpha[-1, :])
 
