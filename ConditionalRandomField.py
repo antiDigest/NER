@@ -246,8 +246,7 @@ class ConditionalRandomField(object):
                        str(np.sum(empirical)))
                 logger(start + "[VECTOR]: WEIGHTS: " + str(weights))
 
-            J = alpha * (np.array(empirical) - chainProb) - \
-                0.1 * np.sum(weights)
+            J = (np.array(empirical) - chainProb)
             # % Gradient
             # J = J / np.exp(weights)
 
@@ -264,7 +263,7 @@ class ConditionalRandomField(object):
                 # options={'ftol': 1e-4, 'disp': True, 'maxiter': 1000})
                 logger("[ITERATION]: " + str(its) + " / 1000")
                 res, _, _ = fmin_l_bfgs_b(trainer, self.weights,
-                                          args=(chain, ), pftol=1e-4, disp=True, maxiter=1)
+                                          args=(chain, ), pgtol=7e-2, epsilon=1e-4, disp=True, maxiter=2)
                 self.weights = res
 
         # print(res.x)
