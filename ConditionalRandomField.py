@@ -153,8 +153,7 @@ class ConditionalRandomField(object):
         self.data = dataset
         self.M = dataset.rows()
         self.featureSize = NUMFEATURES
-        self.weights = np.array(
-            [-2.21114562, -2.21114561, -2.21114562, -2.21114562, -2.21114561])
+        self.weights = np.ones((1, NUMFEATURES))
         self.chains = []
         self.verbose = verbose
 
