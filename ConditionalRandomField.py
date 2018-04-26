@@ -318,7 +318,7 @@ if __name__ == '__main__':
     crf = ConditionalRandomField(d, verbose=args.verbose)
     print("[INFO]: Time Taken = " + str(time.time() - start))
     # crf.train()
-    chains = crf.getChains()
+    # chains = crf.getChains()
     start = time.time()
     crf.train()
     print("[INFO]: Time Taken = " + str(time.time() - start))
