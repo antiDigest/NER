@@ -215,10 +215,6 @@ class ConditionalRandomField(object):
 
         from pathos.multiprocessing import ProcessingPool as Pool
 
-        pool = Pool(10)
-        data = pool.map(extract, self.chains)
-        featureCount = partition(data)
-
         empirical = featureCount
         # empirical = 1.
         if self.verbose:
@@ -233,13 +229,17 @@ class ConditionalRandomField(object):
         def trainer(weights, chain):
             logger(start + "[VECTOR]: WEIGHTS: " + str(weights))
 
+            pool = Pool(10)
+            data = pool.map(extract, self.chains)
+            featureCount = partition(data)
+
             chainProb = 0
 
             p = chain.forward(weights)
 
-            data = pool1.map(chainExtract, self.chains)
-            chainProb = partition(data)
-            # chainProb = p
+            # data = pool1.map(chainExtract, self.chains)
+            # chainProb = partition(data)
+            chainProb = p
             if self.verbose:
                 logger(start + " CHAIN PROBABILITY: " + str(chainProb))
                 logger(start + " EMPERICAL PROBABILITY: " +
@@ -263,8 +263,8 @@ class ConditionalRandomField(object):
                                       args=(chain, ), pgtol=1e-4, disp=True, maxiter=2)
             self.weights = res
 
-        print(res.x)
-        print(res.success)
+        # print(res.x)
+        # print(res.success)
 
         # self.weights = np.log(np.exp(self.weights) +
         #                       (alpha * J)) - self.regularize(self.weights)
