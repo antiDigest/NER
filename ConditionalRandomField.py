@@ -260,7 +260,7 @@ class ConditionalRandomField(object):
             #                method='L-BFGS-B', jac=True, args=(chain),
             # options={'ftol': 1e-4, 'disp': True, 'maxiter': 1000})
             res, _, _ = fmin_l_bfgs_b(trainer, self.weights,
-                                      args=(chain), pgtol=1e-4, disp=True)
+                                      args=(chain, ), pgtol=1e-4, disp=True, maxiter=2)
             self.weights = res
 
         print(res.x)
