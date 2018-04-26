@@ -189,16 +189,17 @@ class ConditionalRandomField(object):
         global featureCount
         featureCount = np.zeros(self.featureSize)
 
-        def extract(chain):
+        def extract(chains):
             features = np.zeros(self.featureSize)
-            for t in xrange(0, chain.T):
-                if t == 0:
-                    features = chain.featureMap(
-                        chain.sentence[t], chain.labels[t], -1)
-                else:
-                    features = features + \
-                        chain.featureMap(
-                            chain.sentence[t], chain.labels[t], chain.labels[t - 1])
+            for chain in chains:
+                for t in xrange(0, chain.T):
+                    if t == 0:
+                        features = chain.featureMap(
+                            chain.sentence[t], chain.labels[t], -1)
+                    else:
+                        features = features + \
+                            chain.featureMap(
+                                chain.sentence[t], chain.labels[t], chain.labels[t - 1])
 
             # logger("[FEATURES]: " + str(features), print_it=False)
             return features
@@ -223,10 +224,7 @@ class ConditionalRandomField(object):
         def trainer(weights, chain):
             logger(start + "[VECTOR]: WEIGHTS: " + str(weights))
 
-            pool = Pool(10)
-            data = pool.map(extract, chain)
-            featureCount = partition(data)
-            empirical = featureCount
+            empirical = extract(chain)
             # empirical = 1.
             if self.verbose:
                 logger(start + "[VECTOR]: Empirical Probability")
@@ -234,7 +232,9 @@ class ConditionalRandomField(object):
 
             chainProb = 0
 
-            p = chain.forward(weights)
+            p = 0
+            for c in chain:
+                p += c.forward(weights)
 
             # data = pool1.map(chainExtract, self.chains)
             # chainProb = partition(data)
