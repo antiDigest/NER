@@ -254,13 +254,16 @@ class ConditionalRandomField(object):
             return np.sum(empirical) - chainProb, J
 
         # value = fmin_l_bfgs_b(trainer, self.weights)
-        for chain in self.iterate():
-            # res = minimize(trainer, self.weights,
-            #                method='L-BFGS-B', jac=True, args=(chain),
-            # options={'ftol': 1e-4, 'disp': True, 'maxiter': 1000})
-            res, _, _ = fmin_l_bfgs_b(trainer, self.weights,
-                                      args=(chain, ), pgtol=1e-4, disp=True, maxiter=2)
-            self.weights = res
+        # its = 0
+        for its in xrange(0, 10):
+            for chain in self.iterate():
+                # res = minimize(trainer, self.weights,
+                #                method='L-BFGS-B', jac=True, args=(chain),
+                # options={'ftol': 1e-4, 'disp': True, 'maxiter': 1000})
+                logger("[ITERATION]: " + str(its) + " / 1000")
+                res, _, _ = fmin_l_bfgs_b(trainer, self.weights,
+                                          args=(chain, ), pgtol=1e-4, disp=True, maxiter=1)
+                self.weights = res
 
         # print(res.x)
         # print(res.success)
@@ -294,7 +297,7 @@ class ConditionalRandomField(object):
 
     def iterate(self):
         ch = len(self.chains)
-        for val in xrange(0, ch, 5):
+        for val in xrange(0, ch, 10):
             yield self.chains[val:val + 5]
 
 if __name__ == '__main__':
