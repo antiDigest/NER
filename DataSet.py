@@ -93,40 +93,39 @@ class DataSet(object):
         if self.verbose:
             logger("[INFO]: Pre-Calculating label transition probabilities...")
 
-        # if os.path.exists('emission.npy'):
-        #     self.emit = np.load('emission.npy')
-        # else:
         entityList = sorted(entities.keys())
         S = len(entityList)
         transProb = np.zeros((S, S))
         self.tagCount = np.zeros(S)
 
-        for tagIndex, tag in enumerate(entityList):
-            num = self.source[self.source['Tag'].str.contains(tag)]
-            self.tagCount[tagIndex] = len(num.index)
+        if os.path.exists('transmission.npy'):
+            self.transProb = np.load('transmission.npy')
+            for tagIndex, tag in enumerate(entityList):
+                num = self.source[self.source['Tag'].str.contains(tag)]
+                self.tagCount[tagIndex] = len(num.index)
+        else:
+            for tagIndex, tag in enumerate(entityList):
+                num = self.source[self.source['Tag'].str.contains(tag)]
+                self.tagCount[tagIndex] = len(num.index)
 
-            indexes = num.index.values
-            indexes = [
-                index + 1 for index in indexes if index < self.M - 1]
+                indexes = num.index.values
+                indexes = [
+                    index + 1 for index in indexes if index < self.M - 1]
 
-            for nextTag in entityList:
-                nextNum = self.source.iloc[indexes, :][
-                    self.source.iloc[indexes, :]['Tag'].str.contains(nextTag)]
-                transProb[tagIndex, entityList.index(
-                    nextTag)] = len(nextNum.index)
+                for nextTag in entityList:
+                    nextNum = self.source.iloc[indexes, :][
+                        self.source.iloc[indexes, :]['Tag'].str.contains(nextTag)]
+                    transProb[tagIndex, entityList.index(
+                        nextTag)] = len(nextNum.index)
 
-            if len(num.index) != 0:
-                transProb[tagIndex, :] = transProb[
-                    tagIndex, :] / len(num.index)
-            else:
-                transProb[tagIndex, :] = 0
+                if len(num.index) != 0:
+                    transProb[tagIndex, :] = transProb[
+                        tagIndex, :] / len(num.index)
+                else:
+                    transProb[tagIndex, :] = 0
 
-        self.transProb = transProb
-        np.save('transmission.npy', self.transProb)
-
-        # self.emission = {}
-        # for word in self.unigrams:
-        #     self.emission[word] = self.source[self.source['Word'] == word]
+            self.transProb = transProb
+            np.save('transmission.npy', self.transProb)
 
     def emission(self, label=None, word=None):
 
