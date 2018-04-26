@@ -144,9 +144,9 @@ class DataSet(object):
 
                     self.emission[label, index] = emissionCount / count_tag
 
-                from pathos.multiprocessing import ProcessingPool as Pool
-                pool = Pool(10)
-                pool.map(emit, self.unigrams)
+                # from pathos.multiprocessing import ProcessingPool as Pool
+                # pool = Pool(10)
+                # pool.map(emit, self.unigrams)
         else:
             w_index = findIndex(word, self.unigrams)
             return self.emission[label, w_index]
