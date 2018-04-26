@@ -114,7 +114,8 @@ class ConditionalRandomField(object):
             viterbi = [{}]
 
             for state in xrange(0, self.states):
-                prob = np.exp(sum(weights * self.featureMap(t - 1))
+                prob = np.exp(sum(weights * self.featureMap(self.sentence[0],
+                                                            entities.keys()[state], -1))
                               ) * self.pi[state]
                 viterbi[0][state] = {'prob': prob, 'prev': None}
 
@@ -124,10 +125,11 @@ class ConditionalRandomField(object):
                 viterbi.append({})
                 for state in xrange(0, self.states):
                     # max(Prev_prob * trans_prob, prev)
-                    f = sum(
-                        weights * chain.featureMap(chain.sentence[t - 1], chain.labels[t - 1]))
-                    maxProb, prevState = max([(np.exp(f) * viterbi[t - 1][prev]['prob'], prev)
-                                              for prev in states], key=lambda i: i[0])
+                    maxProb, prevState = max([(np.exp(sum(weights * self.featureMap(self.sentence[t],
+                                                                                    entities.keys()[
+                        state],
+                        entities.keys()[prev]))) * viterbi[t - 1][prev]['prob'], prev)
+                        for prev in xrange(0, self.states)], key=lambda i: i[0])
 
                     viterbi[t][state] = {'prob': maxProb, 'prev': prevState}
 
@@ -228,15 +230,10 @@ class ConditionalRandomField(object):
 
         def trainer(weights):
             logger(start + "[VECTOR]: WEIGHTS: " + str(weights))
+
             chainProb = 0
 
-            def chainExtract(chain):
-                # p = 0
-                # for chain in self.chains:
-                p = chain.forward(weights)
-                if self.verbose:
-                    logger(start + " PROBABILITY: " + str(p), print_it=False)
-                return p
+            p = chain.forward(weights)
 
             data = pool1.map(chainExtract, self.chains)
             chainProb = partition(data)
@@ -257,7 +254,7 @@ class ConditionalRandomField(object):
 
         # value = fmin_l_bfgs_b(trainer, self.weights)
         res = minimize(trainer, self.weights,
-                       method='L-BFGS-B', jac=True,
+                       method='L-BFGS-B', jac=True, args=(self.iterate())
                        options={'ftol': 1e-4, 'disp': True, 'maxiter': 1000})
 
         print(res.x)
@@ -290,6 +287,10 @@ class ConditionalRandomField(object):
 
         return chain.viterbi(self.weights)
 
+    def iterate(self):
+        for chain in self.chains:
+            yield chain
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -303,7 +304,7 @@ if __name__ == '__main__':
 
     start = time.time()
     if args.demo:
-        d = DataSet(FILE='demo/sample.csv', verbose=args.verbose)
+        d = DataSet(FILE='demo/sample_test.csv', verbose=args.verbose)
     else:
         d = DataSet(verbose=args.verbose)
     print("[INFO]: Time Taken = " + str(time.time() - start))
@@ -311,12 +312,18 @@ if __name__ == '__main__':
     crf = ConditionalRandomField(d, verbose=args.verbose)
     print("[INFO]: Time Taken = " + str(time.time() - start))
     # crf.train()
-    # chains = crf.getChains()
+    chains = crf.getChains()
     start = time.time()
     crf.train()
     print("[INFO]: Time Taken = " + str(time.time() - start))
 
-    for chain in crf.chains:
-        print(" ".join(chain.sentence))
-        print(crf.viterbi(chain))
-        break
+    # crf.weights = np.array(
+    #     [-2.21114562, -2.21114561, -2.21114562, -2.21114562, -2.21114561])
+
+    # for chain in crf.chains:
+    #     print(" ".join(chain.sentence))
+    #     sequence = crf.viterbi(chain)
+    #     for index, seq in enumerate(sequence):
+    #         print((chain.sentence[index], seq))
+    #     # print(crf.viterbi(chain))
+    #     break
