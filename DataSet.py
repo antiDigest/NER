@@ -93,6 +93,9 @@ class DataSet(object):
         if self.verbose:
             logger("[INFO]: Pre-Calculating label transition probabilities...")
 
+        # if os.path.exists('emission.npy'):
+        #     self.emit = np.load('emission.npy')
+        # else:
         entityList = sorted(entities.keys())
         S = len(entityList)
         transProb = np.zeros((S, S))
@@ -103,7 +106,8 @@ class DataSet(object):
             self.tagCount[tagIndex] = len(num.index)
 
             indexes = num.index.values
-            indexes = [index + 1 for index in indexes if index < self.M - 1]
+            indexes = [
+                index + 1 for index in indexes if index < self.M - 1]
 
             for nextTag in entityList:
                 nextNum = self.source.iloc[indexes, :][
@@ -118,6 +122,7 @@ class DataSet(object):
                 transProb[tagIndex, :] = 0
 
         self.transProb = transProb
+        np.save('transmission.npy', self.transProb)
 
         # self.emission = {}
         # for word in self.unigrams:
@@ -126,30 +131,35 @@ class DataSet(object):
     def emission(self, label=None, word=None):
 
         if label == None:
-            self.emission = np.zeros(
-                (len(entities.keys()), len(self.unigrams)))
-            for label in xrange(0, len(entities.keys())):
-                count_tag = self.tagCount[label]
-                print(count_tag)
-                label_word = entities.keys()[entities.values().index(label)]
-                words = self.source[self.source[
-                    'Tag'].str.contains(label_word)]
+            if os.path.exists('emission.npy'):
+                self.emit = np.load('emission.npy')
+            else:
+                self.emit = np.zeros(
+                    (len(entities.keys()), len(self.unigrams)))
+                for label in xrange(0, len(entities.keys())):
+                    count_tag = self.tagCount[label]
+                    print(count_tag)
+                    label_word = entities.keys()[
+                        entities.values().index(label)]
+                    words = self.source[self.source[
+                        'Tag'].str.contains(label_word)]
 
-                for word in list(words['Word'].unique()):
-                    index = findIndex(word, self.unigrams)
-                    entityList = sorted(entities.keys())
+                    for word in list(words['Word'].unique()):
+                        index = findIndex(word, self.unigrams)
+                        entityList = sorted(entities.keys())
 
-                    w_count = words[words['Word'] == word]
-                    emissionCount = float(len(w_count.index))
+                        w_count = words[words['Word'] == word]
+                        emissionCount = float(len(w_count.index))
 
-                    self.emission[label, index] = emissionCount / count_tag
+                        self.emit[label, index] = emissionCount / count_tag
 
-                # from pathos.multiprocessing import ProcessingPool as Pool
-                # pool = Pool(10)
-                # pool.map(emit, self.unigrams)
+                    # from pathos.multiprocessing import ProcessingPool as Pool
+                    # pool = Pool(10)
+                    # pool.map(emit, self.unigrams)
+                np.save('emission.npy', self.emit)
         else:
             w_index = findIndex(word, self.unigrams)
-            return self.emission[label, w_index]
+            return self.emit[label, w_index]
 
 
 if __name__ == '__main__':
