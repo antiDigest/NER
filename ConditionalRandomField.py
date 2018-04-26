@@ -255,8 +255,8 @@ class ConditionalRandomField(object):
             return np.sum(empirical) - chainProb, J
 
         # value = fmin_l_bfgs_b(trainer, self.weights)
-        res = minimize(trainer, self.weights, chunksize=1,
-                       method='L-BFGS-B', jac=True, args=(self.iterate()),
+        res = minimize(trainer, self.weights,
+                       method='L-BFGS-B', jac=True, args=(self.iterate(), chunksize=1),
                        options={'ftol': 1e-4, 'disp': True, 'maxiter': 1000})
 
         print(res.x)
