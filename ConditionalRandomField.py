@@ -294,8 +294,9 @@ class ConditionalRandomField(object):
         return chain.viterbi(self.weights)
 
     def iterate(self):
-        for chain in self.chains:
-            yield chain
+        ch = len(self.chains)
+        for val in xrange(0, ch, 5):
+            yield self.chains[val:val + 5]
 
 if __name__ == '__main__':
 
