@@ -105,7 +105,7 @@ class ConditionalRandomField(object):
                         next_alpha = next_alpha / max_alpha
                     alpha[t, state] = np.sum(next_alpha)
 
-            # logger("[VECTOR]: ALPHA = " + str(alpha[self.T - 1, :]))
+            logger("[VECTOR]: ALPHA = " + str(alpha[self.T - 1, :]), print_it=False)
 
             return sum(alpha[-1, :])
 
@@ -227,15 +227,15 @@ class ConditionalRandomField(object):
         # while np.sum(empirical) - chainProb > 0.00001:
 
         def trainer(weights):
-
+            logger(start + "[VECTOR]: WEIGHTS: " + str(weights))
             chainProb = 0
 
             def chainExtract(chain):
                 # p = 0
                 # for chain in self.chains:
                 p = chain.forward(weights)
-                # if self.verbose:
-                #     logger(start + " PROBABILITY: " + str(p))
+                if self.verbose:
+                    logger(start + " PROBABILITY: " + str(p), print_it=False)
                 return p
 
             data = pool1.map(chainExtract, self.chains)
