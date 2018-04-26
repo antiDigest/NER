@@ -36,18 +36,23 @@ def extractFeatures(sentence, pos, labels, label, prev_label, wordindex, dataset
         prev_label = getEntity(prev_label)
 
     try:
-        prev_word = findIndex(
-            sentence[wordindex - 1], dataset.unigrams)
+    #    prev_word = findIndex(
+    #        sentence[wordindex - 1], dataset.unigrams)
     #     prev_pos = findIndex(pos[wordindex - 1], dataset.unipos)
     #     # prev_label = getEntity(labels[wordindex - 1])
         if (wordindex == 0):
             prev_word = -1
+	else:
+            prev_word = findIndex(
+	                sentence[wordindex - 1], dataset.unigrams)
     #         prev_pos = -1
     #         # prev_label = -1
     except:
         prev_word = -1
     #     prev_pos = -1
     #     # prev_label = -1
+    if prev_word == None:
+        prev_word = -1
 
     try:
         next_word = findIndex(sentence[wordindex + 1], dataset.unigrams)
@@ -55,6 +60,8 @@ def extractFeatures(sentence, pos, labels, label, prev_label, wordindex, dataset
     except:
         next_word = -2
     #     next_pos = -2
+    if next_word == None:
+        next_word = -2
 
     # d = Data
     # print("Current pos tags", pos[wordindex])
