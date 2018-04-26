@@ -299,7 +299,7 @@ class ConditionalRandomField(object):
     def iterate(self):
         ch = len(self.chains)
         for val in xrange(0, ch, 32):
-            yield self.chains[val:val + 5]
+            yield self.chains[val:val + 32]
 
 if __name__ == '__main__':
 
