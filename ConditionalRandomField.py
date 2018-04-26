@@ -8,7 +8,7 @@ from features import *
 import time
 import argparse
 import itertools
-from scipy.optimize import minimize
+from scipy.optimize import minimize, fmin_l_bfgs_b
 
 
 class ConditionalRandomField(object):
@@ -255,9 +255,13 @@ class ConditionalRandomField(object):
             return np.sum(empirical) - chainProb, J
 
         # value = fmin_l_bfgs_b(trainer, self.weights)
-        res = minimize(trainer, self.weights,
-                       method='L-BFGS-B', jac=True, args=(self.iterate(), chunksize=1,),
-                       options={'ftol': 1e-4, 'disp': True, 'maxiter': 1000})
+        for chain in self.iterate():
+            # res = minimize(trainer, self.weights,
+            #                method='L-BFGS-B', jac=True, args=(chain),
+            # options={'ftol': 1e-4, 'disp': True, 'maxiter': 1000})
+            res, _, _ = fmin_l_bfgs_b(trainer, self.weights,
+                                      args=(chain), pgtol=1e-4, disp=True)
+            self.weights = res
 
         print(res.x)
         print(res.success)
