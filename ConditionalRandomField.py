@@ -262,7 +262,7 @@ class ConditionalRandomField(object):
                 # options={'ftol': 1e-4, 'disp': True, 'maxiter': 1000})
                 logger("[ITERATION]: " + str(its) + " / 1000")
                 res, _, _ = fmin_l_bfgs_b(trainer, self.weights,
-                                          args=(chain, ), pgtol=1e-4, disp=True, maxiter=1)
+                                          args=(chain, ), disp=True, maxiter=1)
                 self.weights = res
 
         # print(res.x)
