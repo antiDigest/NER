@@ -215,12 +215,6 @@ class ConditionalRandomField(object):
 
         from pathos.multiprocessing import ProcessingPool as Pool
 
-        empirical = featureCount
-        # empirical = 1.
-        if self.verbose:
-            logger(start + "[VECTOR]: Empirical Probability")
-            logger(start + str(empirical))
-
         its = 0
         chainProb = 0
         pool1 = Pool(10)
@@ -232,6 +226,11 @@ class ConditionalRandomField(object):
             pool = Pool(10)
             data = pool.map(extract, chain)
             featureCount = partition(data)
+            empirical = featureCount
+            # empirical = 1.
+            if self.verbose:
+                logger(start + "[VECTOR]: Empirical Probability")
+                logger(start + str(empirical))
 
             chainProb = 0
 
