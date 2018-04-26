@@ -9,7 +9,7 @@ from utils import *
 
 
 nouns = {x.name().split('.', 1)[0] for x in wn.all_synsets('n')}
-NUMFEATURES = 5
+NUMFEATURES = 8
 
 
 def getFeatureMap(sentence, pos, labels, label, prev_label, word, dataset):
@@ -27,7 +27,6 @@ def getFeatureMap(sentence, pos, labels, label, prev_label, word, dataset):
 
 
 def extractFeatures(sentence, pos, labels, label, prev_label, wordindex, dataset):
-    # TODO: how to handle non-binary features
     word = sentence[wordindex]
     word_pos = pos[wordindex]
     word_label = getEntity(label)
@@ -36,39 +35,28 @@ def extractFeatures(sentence, pos, labels, label, prev_label, wordindex, dataset
         prev_label = getEntity(prev_label)
 
     try:
-    #    prev_word = findIndex(
-    #        sentence[wordindex - 1], dataset.unigrams)
-    #     prev_pos = findIndex(pos[wordindex - 1], dataset.unipos)
-    #     # prev_label = getEntity(labels[wordindex - 1])
         if (wordindex == 0):
             prev_word = -1
-	else:
+            prev_pos = -1
+        else:
             prev_word = findIndex(
-	                sentence[wordindex - 1], dataset.unigrams)
-    #         prev_pos = -1
-    #         # prev_label = -1
+                sentence[wordindex - 1], dataset.unigrams)
+            prev_pos = findIndex(pos[wordindex - 1], dataset.unipos)
     except:
         prev_word = -1
-    #     prev_pos = -1
-    #     # prev_label = -1
+        prev_pos = -1
     if prev_word == None:
         prev_word = -1
 
     try:
         next_word = findIndex(sentence[wordindex + 1], dataset.unigrams)
-    #     next_pos = dataset.unipos.index(pos[wordindex + 1])
+        next_pos = dataset.unipos.index(pos[wordindex + 1])
     except:
         next_word = -2
-    #     next_pos = -2
+        next_pos = -2
     if next_word == None:
         next_word = -2
-
-    # d = Data
-    # print("Current pos tags", pos[wordindex])
-    # if next_pos != -2:
-    #     print("Next POS", pos[next_pos])
-    # else:
-    #     print("NO POS NExt")
+        next_pos = -2
 
     features = {
         # 'isupper': word.isupper(),
@@ -78,9 +66,9 @@ def extractFeatures(sentence, pos, labels, label, prev_label, wordindex, dataset
         # 'word': dataset.unigrams.index(word),
         'next_word': next_word / len(dataset.unigrams),
         'prev_word': prev_word / len(dataset.unigrams),
-        # 'pos': dataset.unipos.index(word_pos),
-        # 'pos_next': next_pos,
-        # 'pos_prev': prev_pos,
+        'pos': dataset.unipos.index(word_pos),
+        'pos_next': next_pos / len(dataset.unipos),
+        'pos_prev': prev_pos / len(dataset.unipos),
         # checking in wordnet for nouns
         # 'isNoun1': isNoun(word),
         # if next word is Verb
