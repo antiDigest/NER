@@ -219,7 +219,7 @@ class ConditionalRandomField(object):
         its = 0
         chainProb = 0
         alpha = 1e-3
-        pool1 = Pool(10)
+        # pool1 = Pool(10)
         # while np.sum(empirical) - chainProb > 0.00001:
 
         def trainer(weights, chain):
@@ -280,8 +280,8 @@ class ConditionalRandomField(object):
         # alpha = 2 / (2 + its)
         # its += 1
 
-        pool1.close()
-        pool1.join()
+        # pool1.close()
+        # pool1.join()
 
     def regularize(self, weights):
         logger("L2 NORM: " + str(sum(np.square(weights)) * 0.01))
