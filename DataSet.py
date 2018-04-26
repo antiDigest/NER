@@ -132,14 +132,15 @@ class DataSet(object):
                 count_tag = self.tagCount[label]
                 print(count_tag)
                 label_word = entities.keys()[entities.values().index(label)]
+                words = self.source[self.source[
+                    'Tag'].str.contains(label_word)]
 
-                def emit(word):
+                for word in list(words['Word'].unique()):
                     index = findIndex(word, self.unigrams)
                     entityList = sorted(entities.keys())
 
-                    w_count = self.source[self.source['Word'] == word]
-                    emissionCount = float(len(
-                        w_count[w_count['Tag'].str.contains(label_word)].index))
+                    w_count = words[words['Word'] == word]
+                    emissionCount = float(len(w_count.index))
 
                     self.emission[label, index] = emissionCount / count_tag
 
