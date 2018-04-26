@@ -230,7 +230,7 @@ class ConditionalRandomField(object):
             logger(start + "[VECTOR]: WEIGHTS: " + str(weights))
 
             pool = Pool(10)
-            data = pool.map(extract, self.chains)
+            data = pool.map(extract, chain)
             featureCount = partition(data)
 
             chainProb = 0
