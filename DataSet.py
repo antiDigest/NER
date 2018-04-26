@@ -34,6 +34,7 @@ class DataSet(object):
         self.unigrams()
         self.unipos()
         self.transition()
+        self.emission()
 
     def club(self):
         if self.verbose:
@@ -122,20 +123,32 @@ class DataSet(object):
         # for word in self.unigrams:
         #     self.emission[word] = self.source[self.source['Word'] == word]
 
-    def emission(self, label, word):
-        count_tag = self.tagCount[label]
+    def emission(self, label=None, word=None):
 
-        label = entities.keys()[entities.values().index(label)]
+        if label == None:
+            self.emission = np.zeros(
+                (len(entities.keys()), len(self.unigrams)))
+            for label in xrange(0, len(entities.keys())):
+                count_tag = self.tagCount[label]
+                print(count_tag)
+                label_word = entities.keys()[entities.values().index(label)]
 
-        entityList = sorted(entities.keys())
+                def emit(word):
+                    index = findIndex(word, self.unigrams)
+                    entityList = sorted(entities.keys())
 
-        emission = self.source[self.source['Word'] == word]
-        emissionCount = float(len(
-            emission[emission['Tag'].str.contains(label)].index))
+                    w_count = self.source[self.source['Word'] == word]
+                    emissionCount = float(len(
+                        w_count[w_count['Tag'].str.contains(label_word)].index))
 
-        if count_tag == 0:
-            return 0.
-        return emissionCount / count_tag
+                    self.emission[label, index] = emissionCount / count_tag
+
+                from pathos.multiprocessing import ProcessingPool as Pool
+                pool = Pool(10)
+                pool.map(emit, self.unigrams)
+        else:
+            w_index = findIndex(word, self.unigrams)
+            return self.emission[label, w_index]
 
 
 if __name__ == '__main__':
@@ -152,7 +165,6 @@ if __name__ == '__main__':
 
     d.startProbability()
     print(d.transProb)
-
     print(d.pi)
 
     start = time.time()
