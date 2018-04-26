@@ -264,7 +264,7 @@ class ConditionalRandomField(object):
                 logger("[ITERATION]: " + str(its) + " / 1000")
                 res, _, _ = minimize(trainer, self.weights,
                                      args=(chain, ), method='L-BFGS-B',
-                                     options={'ftol'=1e-2, 'eps'=1e-4, 'disp'=True, 'maxiter'=2})
+                                     options={'ftol': 1e-2, 'eps': 1e-4, 'disp': True, 'maxiter': 2})
                 self.weights = res
 
         # print(res.x)
