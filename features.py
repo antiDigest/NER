@@ -9,7 +9,7 @@ from utils import *
 
 
 nouns = {x.name().split('.', 1)[0] for x in wn.all_synsets('n')}
-NUMFEATURES = 8
+NUMFEATURES = 9
 
 
 def getFeatureMap(sentence, pos, labels, label, prev_label, word, dataset):
@@ -30,6 +30,11 @@ def extractFeatures(sentence, pos, labels, label, prev_label, wordindex, dataset
     word = sentence[wordindex]
     word_pos = pos[wordindex]
     word_label = getEntity(label)
+
+    try:
+        pos = dataset.unipos.index(word_pos)
+    except:
+        pos = -1
 
     if prev_label != -1:
         prev_label = getEntity(prev_label)
@@ -59,31 +64,14 @@ def extractFeatures(sentence, pos, labels, label, prev_label, wordindex, dataset
         next_pos = -2
 
     features = {
-        # 'isupper': word.isupper(),
-        # 'islower': word.islower(),
         'istitle': word.istitle(),
-        # 'isdigit': word.isdigit(),
+        'isdigit': word.isdigit(),
         # 'word': dataset.unigrams.index(word),
         'next_word': next_word / len(dataset.unigrams),
         'prev_word': prev_word / len(dataset.unigrams),
-        'pos': dataset.unipos.index(word_pos),
+        'pos': pos,
         'pos_next': next_pos / len(dataset.unipos),
         'pos_prev': prev_pos / len(dataset.unipos),
-        # checking in wordnet for nouns
-        # 'isNoun1': isNoun(word),
-        # if next word is Verb
-        # if Next POS is Verb
-        # 'is_next_verb': next_pos != -2 or (pos[next_pos] == "VBZ")
-        # or (next_pos != -2 or (pos[next_pos] == "VH"
-        #                        or pos[next_pos] == "VHD"
-        #                        or pos[next_pos] == "VHN"))
-        # or (next_pos != -2 or (pos[next_pos] == "VV" or pos[next_pos] == "VVD")),
-        # 'isCompany': (word.isupper() or word[0].isupper()) and (sentence[wordindex + 1].lower() == "inc" or sentence[wordindex + 1].lower() == "inc."),
-        # 'isOrg': (word.isupper() or word[0].isupper()) and (sentence[wordindex + 1].lower() == "org" or sentence[wordindex + 1].lower() == "org."),
-        # 'isCity1': (word.isupper() or word[0].isupper()) and "city" in sentence[wordindex + 1].lower(),
-        # 'isCounty1': (word.isupper() or word[0].isupper()) and "county" in sentence[wordindex + 1].lower(),
-        # 'isCity2': (word.isupper() or word[0].isupper()) and "city of" in sentence[wordindex - 1].lower(),
-        # 'isCounty2': (word.isupper() or word[0].isupper()) and "county of" in sentence[wordindex - 1].lower(),
         'prev_state_prob': 47959. / 1048576.,
         'obs_prob': 0
     }
@@ -98,8 +86,11 @@ def extractFeatures(sentence, pos, labels, label, prev_label, wordindex, dataset
         # print(features['prev_state_prob'])
 
     obs_prob = dataset.emission(word_label, word)
-    if obs_prob != -1:
-        features['obs_prob'] = obs_prob
+    try:
+        if obs_prob != -1:
+            features['obs_prob'] = obs_prob
+    except:
+        pass
 
     # logging.info(str(features))
     return features

@@ -9,6 +9,7 @@ import time
 import argparse
 import itertools
 from scipy.optimize import minimize, fmin_l_bfgs_b
+import scipy
 
 
 class ConditionalRandomField(object):
@@ -92,7 +93,7 @@ class ConditionalRandomField(object):
                     # logger("[FEATURE NORM]: " + str(f))
                     maxf = np.max(f)
                     # logger("[MAXIMUM]: " + str(maxf))
-                    if maxf > 0:
+                    if maxf != 0:
                         f = f / maxf
                     f = np.exp(f)
                     # logger("[FEATURE NORM]: " + str(f))
@@ -100,15 +101,16 @@ class ConditionalRandomField(object):
                     # logger("[ALPHA]: " + str(alpha[t - 1, :]))
                     next_alpha = alpha[t - 1, :] * np.log(f)
                     max_alpha = np.max(next_alpha)
-                    if max_alpha > 0:
+                    if max_alpha != 0:
                         # f = f / maxf
                         next_alpha = next_alpha / max_alpha
                     alpha[t, state] = np.sum(next_alpha)
 
-            logger("[VECTOR]: ALPHA = " +
-                   str(alpha[self.T - 1, :]), print_it=False)
+            logger("[VECTOR]: ALPHA = " + str(alpha[-1, :]), print_it=False)
 
-            return sum(alpha[-1, :])
+            if np.max(alpha[-1, :]) != 0:
+                return np.log(alpha[-1, :])
+            return alpha[-1, :]
 
         def viterbi(self, weights):
 
@@ -153,7 +155,7 @@ class ConditionalRandomField(object):
         self.data = dataset
         self.M = dataset.rows()
         self.featureSize = NUMFEATURES
-        self.weights = np.ones((1, NUMFEATURES))
+        self.weights = np.zeros(NUMFEATURES)
         self.chains = []
         self.verbose = verbose
 
@@ -192,16 +194,12 @@ class ConditionalRandomField(object):
             features = np.zeros(self.featureSize)
             for chain in chains:
                 for t in xrange(0, chain.T):
-                    if t == 0:
-                        features = chain.featureMap(
-                            chain.sentence[t], chain.labels[t], -1)
-                    else:
-                        features = features + \
-                            chain.featureMap(
-                                chain.sentence[t], chain.labels[t], chain.labels[t - 1])
+                    features = features + \
+                        chain.featureMap(
+                            chain.sentence[t], chain.labels[t], chain.labels[t - 1])
 
             # logger("[FEATURES]: " + str(features), print_it=False)
-            return features
+            return np.array(features) / float(len(chains))
 
         def partition(mapped_values):
             for index, value in enumerate(mapped_values):
@@ -216,7 +214,6 @@ class ConditionalRandomField(object):
         from pathos.multiprocessing import ProcessingPool as Pool
 
         its = 0
-        chainProb = 0
         alpha = 1e-3
         # pool1 = Pool(10)
         # while np.sum(empirical) - chainProb > 0.00001:
@@ -225,46 +222,38 @@ class ConditionalRandomField(object):
             logger(start + "[VECTOR]: WEIGHTS: " + str(weights))
 
             empirical = extract(chain)
-            # empirical = 1.
-            if self.verbose:
-                logger(start + "[VECTOR]: Empirical Probability")
-                logger(start + str(empirical))
 
-            chainProb = 0
-
-            p = 0
+            p = np.zeros(self.featureSize)
             for c in chain:
                 p += c.forward(weights)
 
-            # data = pool1.map(chainExtract, self.chains)
-            # chainProb = partition(data)
             chainProb = p
-            if self.verbose:
-                logger(start + " CHAIN PROBABILITY: " + str(chainProb))
-                logger(start + " EMPERICAL PROBABILITY: " +
-                       str(np.sum(empirical)))
-                logger(start + "[VECTOR]: WEIGHTS: " + str(weights))
 
-            J = np.array(empirical) - chainProb
+            J = scipy.array(empirical - chainProb)
+            if self.verbose:
+                logger(start + " Empirical Probability: " + str(empirical))
+                logger(start + " COST: " + str(np.sum(J)))
+                logger(start + " GRADIENT: " + str(J))
             # % Gradient
             # J = J / np.exp(weights)
 
             # cost = alpha * J
 
-            return np.array(np.sum(empirical) - chainProb), J
+            return scipy.array(np.sum(empirical) - chainProb), J
 
         # value = fmin_l_bfgs_b(trainer, self.weights)
         # its = 0
-        for its in xrange(0, 10):
+        for its in xrange(0, 100):
             for chain in self.iterate():
                 # res = minimize(trainer, self.weights,
                 #                method='L-BFGS-B', jac=True, args=(chain),
                 # options={'ftol': 1e-4, 'disp': True, 'maxiter': 1000})
                 logger("[ITERATION]: " + str(its) + " / 1000")
-                res, _, _ = minimize(trainer, self.weights,
-                                     args=(chain, ), method='L-BFGS-B',
-                                     options={'ftol': 1e-2, 'eps': 1e-4, 'disp': True, 'maxiter': 2})
+                res, _, _ = fmin_l_bfgs_b(trainer, self.weights,
+                                          args=(chain, ),
+                                          epsilon=1e-2, disp=True, maxiter=1)
                 self.weights = res
+                logger(start + "[VECTOR]: WEIGHTS: " + str(self.weights))
 
         # print(res.x)
         # print(res.success)
@@ -296,10 +285,10 @@ class ConditionalRandomField(object):
 
         return chain.viterbi(self.weights)
 
-    def iterate(self):
+    def iterate(self, batch_size=128):
         ch = len(self.chains)
-        for val in xrange(0, ch, 32):
-            yield self.chains[val:val + 32]
+        for val in xrange(0, ch, batch_size):
+            yield self.chains[val:val + batch_size]
 
 if __name__ == '__main__':
 
@@ -328,8 +317,10 @@ if __name__ == '__main__':
     print("[INFO]: Time Taken = " + str(time.time() - start))
 
     # crf.weights = np.array(
-    #     [-2.21114562, -2.21114561, -2.21114562, -2.21114562, -2.21114561])
+    #     [1.70747147, 1.07990082, 1.17294903, 1.87841061, 1.25480017, 1.25600799,
+    #      1.01784775, 1.46638597])
 
+    # # crf.getChains()
     # for chain in crf.chains:
     #     print(" ".join(chain.sentence))
     #     sequence = crf.viterbi(chain)

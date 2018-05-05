@@ -7,8 +7,8 @@ import numpy as np
 from nltk.corpus import wordnet as wn
 import logging
 import os
-if os.path.exists('output.log'):
-    os.remove('output.log')
+if os.path.exists('out2.log'):
+    os.remove('out2.log')
 logging.getLogger().setLevel(logging.INFO)
 logging.basicConfig(filename='output.log', format='%(asctime)s %(message)s')
 
