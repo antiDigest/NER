@@ -10,13 +10,22 @@ import argparse
 import itertools
 from scipy.optimize import minimize, fmin_l_bfgs_b
 import scipy
+from scipy import misc, optimize
+
+
+def log_dot_vm(loga, logM):
+    return misc.logsumexp(loga.reshape(loga.shape + (1,)) + logM, axis=0)
+
+
+def log_dot_mv(logM, logb):
+    return misc.logsumexp(logM + logb.reshape((1,) + logb.shape), axis=1)
 
 
 class ConditionalRandomField(object):
 
     class Chain(object):
 
-        def __init__(self, sentence, tags, pos, pi, states, dataset, verbose=False):
+        def __init__(self, sentence, tags, pos, pi, dataset, featureSize, verbose=False):
             assert type(sentence) == list, "Sentence should be a list."
             assert type(tags) == list, "Tags should be a list."
             assert type(pos) == list, "POS should be a list."
@@ -30,6 +39,7 @@ class ConditionalRandomField(object):
             self.dataset = dataset
             self.verbose = verbose
             self.features = []
+            self.featureSize = featureSize
 
             if self.verbose:
                 logger(self.__str__())
@@ -72,45 +82,31 @@ class ConditionalRandomField(object):
             #     logger("FEATURES: " + features)
             return features
 
-        def forward(self, weights):
-            alpha = np.zeros((self.T, self.states))
+        def all_features(self):
+
+            F = np.zeros((self.T, self.states,
+                          self.states, self.featureSize))
+
+            for t in xrange(1, self.T):
+                for prev_state in xrange(0, self.states):
+                    for state in xrange(0, self.states):
+                        F[t, prev_state, state] = self.featureMap(self.sentence[t - 1],
+                                                                  entities.keys()[state], entities.keys()[prev_state])
+
+            logger("[VECTOR]: FEATURE SHAPE = " + str(F.shape), print_it=False)
+
+            return F
+
+        def forward(self, M):
+            alpha = np.NINF * np.ones((self.T, self.states))
             alpha[0, :] = self.pi
 
             for t in xrange(1, self.T):
-                # logger("[VECTOR]: ALPHA[t-1] = " + str(alpha[t - 1, :]))
-                # alpha[t - 1, :] = alpha[t - 1, :] / \
-                #     np.sum(alpha[t - 1, :])  # NORMALIZE
-                for state in xrange(0, self.states):
-                    # next_alpha = np.zeros(self.states)
-                    # for prev_state in xrange(0, self.states):
-                    F = [self.featureMap(self.sentence[t - 1],
-                                         entities.keys()[state],
-                                         entities.keys()[prev_state])
-                         for prev_state in xrange(0, self.states)]
+                alpha[t] = log_dot_vm(alpha[t - 1], M[t - 1])
 
-                    # print("[FEATURE]: " + str(F))
-                    f = np.array([np.sum(weights * feature) for feature in F])
-                    # logger("[FEATURE NORM]: " + str(f))
-                    maxf = np.max(f)
-                    # logger("[MAXIMUM]: " + str(maxf))
-                    if maxf != 0:
-                        f = f / maxf
-                    f = np.exp(f)
-                    # logger("[FEATURE NORM]: " + str(f))
-                    # In log-sum-exp space instead of sum-exp state
-                    # logger("[ALPHA]: " + str(alpha[t - 1, :]))
-                    next_alpha = alpha[t - 1, :] * np.log(f)
-                    max_alpha = np.max(next_alpha)
-                    if max_alpha != 0:
-                        # f = f / maxf
-                        next_alpha = next_alpha / max_alpha
-                    alpha[t, state] = np.sum(next_alpha)
+            logger("[VECTOR]: ALPHA = " + str(alpha[-1]), print_it=False)
 
-            logger("[VECTOR]: ALPHA = " + str(alpha[-1, :]), print_it=False)
-
-            if np.max(alpha[-1, :]) != 0:
-                return np.log(alpha[-1, :])
-            return alpha[-1, :]
+            return (alpha, alpha[-1])
 
         def viterbi(self, weights):
 
@@ -151,13 +147,15 @@ class ConditionalRandomField(object):
 
             return sequence
 
-    def __init__(self, dataset, verbose=False):
+    def __init__(self, dataset, verbose=False, sigma=10):
         self.data = dataset
         self.M = dataset.rows()
         self.featureSize = NUMFEATURES
-        self.weights = np.zeros(NUMFEATURES)
+        self.weights = np.random.rand(NUMFEATURES)
         self.chains = []
         self.verbose = verbose
+        self.v = sigma ** 2
+        self.v2 = self.v * 2
 
     def getChains(self):
         if self.verbose:
@@ -166,7 +164,7 @@ class ConditionalRandomField(object):
         startProb = self.data.startProbability()
         for row in self.data.iterate():
             chain = self.Chain(row[0], row[1], row[2],
-                               startProb, self.featureSize, self.data)
+                               startProb, self.data, self.featureSize)
             self.chains.append(chain)
 
         # print(self.chains)
@@ -176,104 +174,71 @@ class ConditionalRandomField(object):
     def train(self, alpha=0.1):
 
         start = "[INFO]:[TRAINING]:"
-
-        if self.verbose:
-            logger(start + " Training CRF Model...")
-            logger(start + " Alpha=" + str(alpha))
+        logger(start + " Training CRF Model...", print_it=self.verbose)
+        logger(start + " Alpha=" + str(alpha), print_it=self.verbose)
 
         self.getChains()
 
-        if self.verbose:
-            logger(start + " Number of training instances=" +
-                   str(len(self.chains)))
+        logger(start + " Number of training instances=" +
+               str(len(self.chains)), print_it=self.verbose)
 
         global featureCount
         featureCount = np.zeros(self.featureSize)
 
-        def extract(chains):
-            features = np.zeros(self.featureSize)
-            for chain in chains:
-                for t in xrange(0, chain.T):
-                    features = features + \
-                        chain.featureMap(
-                            chain.sentence[t], chain.labels[t], chain.labels[t - 1])
-
-            # logger("[FEATURES]: " + str(features), print_it=False)
-            return np.array(features) / float(len(chains))
-
-        def partition(mapped_values):
-            for index, value in enumerate(mapped_values):
-                if index == 0:
-                    sumValue = np.array(value)
-                else:
-                    sumValue = np.add(sumValue, np.array(value))
-            return sumValue
-
-        # Trying to make it run faster
-
-        from pathos.multiprocessing import ProcessingPool as Pool
-
-        its = 0
-        alpha = 1e-3
-        # pool1 = Pool(10)
-        # while np.sum(empirical) - chainProb > 0.00001:
-
-        def trainer(weights, chain):
+        def trainer(weights, chains):
             logger(start + "[VECTOR]: WEIGHTS: " + str(weights))
 
-            empirical = extract(chain)
+            likelihood = 0
+            derivative = np.zeros(len(weights))
+            logger("[INFO]: INIT CHAINS")
+            for chain in chains:
+                all_features = chain.all_features()
+                log_M = np.dot(all_features, weights)
+                log_alphas, last = chain.forward(log_M)
 
-            p = np.zeros(self.featureSize)
-            for c in chain:
-                p += c.forward(weights)
+                time, state = log_alphas.shape
 
-            chainProb = p
+                log_alphas1 = log_alphas.reshape(time, state, 1)
+                log_Z = misc.logsumexp(last)
+                log_probs = log_alphas1 + log_M - log_Z
+                log_probs = log_probs.reshape(log_probs.shape + (1,))
 
-            J = scipy.array(empirical - chainProb)
-            if self.verbose:
-                logger(start + " Empirical Probability: " + str(empirical))
-                logger(start + " COST: " + str(np.sum(J)))
-                logger(start + " GRADIENT: " + str(J))
-            # % Gradient
-            # J = J / np.exp(weights)
+                yp_vec_ids = [getEntity(label) for label in chain.labels[:-1]]
+                y_vec_ids = [getEntity(label) for label in chain.labels[1:]]
 
-            # cost = alpha * J
+                emp = np.array([all_features[range(chain.T), row, index]
+                                for row, index in zip(yp_vec_ids, y_vec_ids)])
+                m = np.array([log_M[range(chain.T), row, index]
+                              for row, index in zip(yp_vec_ids, y_vec_ids)])
 
-            return scipy.array(np.sum(empirical) - chainProb), J
+                exp_features = np.sum(
+                    np.exp(log_probs) * all_features, axis=(0, 1, 2))
+                emp_features = np.sum(emp, axis=(0, 1))
+
+                likelihood += np.sum(m, axis=(0, 1)) - log_Z
+                derivative += emp_features - exp_features
+
+            l = (likelihood - self.regulariser(weights))
+            J = (derivative - self.regulariser_deriv(weights))
+
+            logger(start + " COST: " + str(l), print_it=self.verbose)
+            logger(start + " GRADIENT: " + str(J), print_it=self.verbose)
+
+            return l, J
 
         # value = fmin_l_bfgs_b(trainer, self.weights)
         # its = 0
-        for its in xrange(0, 100):
-            for chain in self.iterate():
-                # res = minimize(trainer, self.weights,
-                #                method='L-BFGS-B', jac=True, args=(chain),
-                # options={'ftol': 1e-4, 'disp': True, 'maxiter': 1000})
-                logger("[ITERATION]: " + str(its) + " / 1000")
-                res, _, _ = fmin_l_bfgs_b(trainer, self.weights,
-                                          args=(chain, ),
-                                          epsilon=1e-2, disp=True, maxiter=1)
-                self.weights = res
-                logger(start + "[VECTOR]: WEIGHTS: " + str(self.weights))
+        for chain in self.iterate():
+            res, _, _ = fmin_l_bfgs_b(
+                trainer, self.weights, args=(chain, ), disp=True)
+            self.weights = res
+            logger(start + "[VECTOR]: WEIGHTS: " + str(self.weights))
 
-        # print(res.x)
-        # print(res.success)
+    def regulariser(self, w):
+        return np.sum(w ** 2) / self.v2
 
-        # self.weights = np.log(np.exp(self.weights) +
-        #                       (alpha * J)) - self.regularize(self.weights)
-
-        # if self.verbose:
-        #     logger(start + "[VECTOR]: UPDATED WEIGHTS")
-        #     logger(start + str(self.weights))
-
-        # alpha = 2 / (2 + its)
-        # its += 1
-
-        # pool1.close()
-        # pool1.join()
-
-    def regularize(self, weights):
-        logger("L2 NORM: " + str(sum(np.square(weights)) * 0.01))
-        return (0.3 * sum(np.square(weights)))
+    def regulariser_deriv(self, w):
+        return np.sum(w) / self.v
 
     def viterbi(self, chain):
         """
@@ -303,7 +268,7 @@ if __name__ == '__main__':
 
     start = time.time()
     if args.demo:
-        d = DataSet(FILE='demo/sample_test.csv', verbose=args.verbose)
+        d = DataSet(FILE='demo/sample.csv', verbose=args.verbose)
     else:
         d = DataSet(verbose=args.verbose)
     print("[INFO]: Time Taken = " + str(time.time() - start))
@@ -312,19 +277,19 @@ if __name__ == '__main__':
     print("[INFO]: Time Taken = " + str(time.time() - start))
     # crf.train()
     # chains = crf.getChains()
-    start = time.time()
-    crf.train()
-    print("[INFO]: Time Taken = " + str(time.time() - start))
+    # start = time.time()
+    # crf.train()
+    # print("[INFO]: Time Taken = " + str(time.time() - start))
 
-    # crf.weights = np.array(
-    #     [1.70747147, 1.07990082, 1.17294903, 1.87841061, 1.25480017, 1.25600799,
-    #      1.01784775, 1.46638597])
+    crf.weights = np.array(
+        [0.72154326, 0.90914545, 0.82638391, 0.93143623, 0.85466993, 0.65499809,
+         0.06497474, 0.71074023, 0.38503808])
 
-    # # crf.getChains()
-    # for chain in crf.chains:
-    #     print(" ".join(chain.sentence))
-    #     sequence = crf.viterbi(chain)
-    #     for index, seq in enumerate(sequence):
-    #         print((chain.sentence[index], seq))
-    #     # print(crf.viterbi(chain))
-    #     break
+    crf.getChains()
+    for chain in crf.chains:
+        print(" ".join(chain.sentence))
+        sequence = crf.viterbi(chain)
+        for index, seq in enumerate(sequence):
+            print((chain.sentence[index], seq))
+        # print(crf.viterbi(chain))
+        break
