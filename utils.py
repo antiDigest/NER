@@ -7,10 +7,10 @@ import numpy as np
 from nltk.corpus import wordnet as wn
 import logging
 import os
-if os.path.exists('output.log'):
-    os.remove('output.log')
+if os.path.exists('out1.log'):
+    os.remove('out1.log')
 logging.getLogger().setLevel(logging.INFO)
-logging.basicConfig(filename='output.log', format='%(asctime)s %(message)s')
+logging.basicConfig(filename='out1.log', format='%(asctime)s %(message)s')
 
 # Named Entities:
 #   geo = Geographical Entity

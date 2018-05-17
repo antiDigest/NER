@@ -11,6 +11,8 @@ import itertools
 from scipy.optimize import minimize, fmin_l_bfgs_b
 import scipy
 from scipy import misc, optimize
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix
 
 
 def log_dot_vm(loga, logM):
@@ -161,10 +163,10 @@ class ConditionalRandomField(object):
         if self.verbose:
             logger("[INFO]: Initialising all the CRF Chains...")
 
-        startProb = self.data.startProbability()
+        self.pi = self.data.startProbability()
         for row in self.data.iterate():
             chain = self.Chain(row[0], row[1], row[2],
-                               startProb, self.data, self.featureSize)
+                               self.pi, self.data, self.featureSize)
             self.chains.append(chain)
 
         # print(self.chains)
@@ -218,8 +220,8 @@ class ConditionalRandomField(object):
                 likelihood += np.sum(m, axis=(0, 1)) - log_Z
                 derivative += emp_features - exp_features
 
-            l = (likelihood - self.regulariser(weights))
-            J = (derivative - self.regulariser_deriv(weights))
+            l = -(likelihood - self.regulariser(weights))
+            J = -(derivative - self.regulariser_deriv(weights))
 
             logger(start + " COST: " + str(l), print_it=self.verbose)
             logger(start + " GRADIENT: " + str(J), print_it=self.verbose)
@@ -228,11 +230,12 @@ class ConditionalRandomField(object):
 
         # value = fmin_l_bfgs_b(trainer, self.weights)
         # its = 0
-        for chain in self.iterate():
-            res, _, _ = fmin_l_bfgs_b(
-                trainer, self.weights, args=(chain, ), disp=True)
-            self.weights = res
-            logger(start + "[VECTOR]: WEIGHTS: " + str(self.weights))
+        for its in xrange(0, 100):
+            for chain in self.iterate():
+                res, _, _ = fmin_l_bfgs_b(
+                    trainer, self.weights, args=(chain, ), disp=True, maxiter=5)
+                self.weights = res
+                logger(start + "[VECTOR]: WEIGHTS: " + str(self.weights))
 
     def regulariser(self, w):
         return np.sum(w ** 2) / self.v2
@@ -250,7 +253,7 @@ class ConditionalRandomField(object):
 
         return chain.viterbi(self.weights)
 
-    def iterate(self, batch_size=128):
+    def iterate(self, batch_size=4):
         ch = len(self.chains)
         for val in xrange(0, ch, batch_size):
             yield self.chains[val:val + batch_size]
@@ -258,9 +261,9 @@ class ConditionalRandomField(object):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-v", "--verbose", help="increase output verbosity",
+    parser.add_argument("-v", "--verbose", help="For verbose output",
                         action="store_true")
-    parser.add_argument("-d", "--demo", help="increase output verbosity",
+    parser.add_argument("-d", "--demo", help="For learning on the sample dataset",
                         action="store_true")
     args = parser.parse_args()
     if args.verbose:
@@ -268,7 +271,7 @@ if __name__ == '__main__':
 
     start = time.time()
     if args.demo:
-        d = DataSet(FILE='demo/sample.csv', verbose=args.verbose)
+        d = DataSet(FILE='demo/sample_test.csv', verbose=args.verbose)
     else:
         d = DataSet(verbose=args.verbose)
     print("[INFO]: Time Taken = " + str(time.time() - start))
@@ -281,15 +284,28 @@ if __name__ == '__main__':
     # crf.train()
     # print("[INFO]: Time Taken = " + str(time.time() - start))
 
+    # crf.weights = np.array(
+    #     [0.8003172,   0.48495405,  3.79160371, -0.02069089,  0.67821951,  0.29449089,
+    #      0.00691485,  0.37848588,  0.55161599])
+
     crf.weights = np.array(
-        [0.72154326, 0.90914545, 0.82638391, 0.93143623, 0.85466993, 0.65499809,
-         0.06497474, 0.71074023, 0.38503808])
+        [0.51581581, 0.1683381,  0.70498652, 0.09672789, 0.08480342, 0.89593315,
+         0.21023996, 0.95635682, 0.7429099])
 
     crf.getChains()
+    print(crf.pi)
+    output_y = []
+    target_y = []
     for chain in crf.chains:
-        print(" ".join(chain.sentence))
+        logger(" ".join(chain.sentence))
+        logger(" ".join(chain.labels))
         sequence = crf.viterbi(chain)
-        for index, seq in enumerate(sequence):
-            print((chain.sentence[index], seq))
-        # print(crf.viterbi(chain))
-        break
+        target_y += list(chain.labels)
+        sequence = [entities.keys()[entities.values().index(s)]
+                    for s in sequence]
+        output_y += list(sequence)
+        logger(" ".join(sequence))
+
+    logger(confusion_matrix(target_y, output_y))
+    logger(classification_report(
+        target_y, output_y, target_names=entities.keys()))
